@@ -1,0 +1,20 @@
+{
+    "version": "1.0",
+    "name": "composer",
+    "display_name": "PHP Composer",
+    "package_version": "2.7.1",
+    "description": "A Dependency Manager for PHP",
+    "author": "Composer Team",
+    "install_scope": "user",
+    "install_path": "/home/ekosuprianto96/.local/share/composer",
+    "entry": "composer",
+    "dependencies": [
+        {
+            "name": "php",
+            "check_command": "php --version"
+        }
+    ],
+    "required_space": 2000000,
+    "license": "MIT",
+    "homepage": "https://getcomposer.org"
+}

@@ -1551,7 +1551,7 @@ dependencies = [
 
 [[package]]
 name = "int-core"
-version = "0.1.0"
+version = "0.2.1"
 dependencies = [
  "anyhow",
  "chrono",
@@ -1569,7 +1569,7 @@ dependencies = [
 
 [[package]]
 name = "int-engine"
-version = "0.1.0"
+version = "0.2.1"
 dependencies = [
  "anyhow",
  "clap",
@@ -1587,7 +1587,7 @@ dependencies = [
 
 [[package]]
 name = "int-pack"
-version = "0.1.0"
+version = "0.2.1"
 dependencies = [
  "anyhow",
  "clap",

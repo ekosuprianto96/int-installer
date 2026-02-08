@@ -58,6 +58,17 @@ impl InstallScope {
             InstallScope::System => PathBuf::from("/etc/systemd/system"),
         }
     }
+
+    /// Get binary symlink path for this scope
+    pub fn bin_path(&self) -> PathBuf {
+        match self {
+            InstallScope::User => {
+                let home = std::env::var("HOME").unwrap_or_else(|_| "/home/user".to_string());
+                PathBuf::from(home).join(".local/bin")
+            }
+            InstallScope::System => PathBuf::from("/usr/local/bin"),
+        }
+    }
 }
 
 /// Package manifest structure

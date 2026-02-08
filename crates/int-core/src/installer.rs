@@ -6,7 +6,6 @@
 /// - Setting permissions
 /// - Executing scripts
 /// - System integration
-
 use crate::desktop::DesktopIntegration;
 use crate::error::{IntError, IntResult};
 use crate::extractor::{ExtractedPackage, PackageExtractor};
@@ -82,6 +81,8 @@ pub struct InstallMetadata {
     pub service_file: Option<PathBuf>,
     /// Service name (if service)
     pub service_name: Option<String>,
+    /// Binary symlink path (if created)
+    pub bin_symlink: Option<PathBuf>,
 }
 
 impl InstallMetadata {
@@ -231,9 +232,7 @@ impl Installer {
         }
 
         // Create desktop entry
-        let desktop_entry = if config.create_desktop_entry
-            && extracted.manifest.desktop.is_some()
-        {
+        let desktop_entry = if config.create_desktop_entry && extracted.manifest.desktop.is_some() {
             self.report_progress(InstallProgress::CreatingDesktopEntry);
             Some(self.create_desktop_entry(&extracted.manifest, &install_path)?)
         } else {
@@ -255,12 +254,46 @@ impl Installer {
             (None, None)
         };
 
+        // Create binary symlink if entry is specified
+        let bin_symlink = if let Some(ref entry) = extracted.manifest.entry {
+            let entry_path = install_path.join("bin").join(entry);
+            if entry_path.exists() {
+                let bin_dir = extracted.manifest.install_scope.bin_path();
+                utils::ensure_dir(&bin_dir)?;
+                let symlink_path = bin_dir.join(entry);
+
+                // Create symlink (remove existing if any)
+                if symlink_path.exists() {
+                    fs::remove_file(&symlink_path).ok();
+                }
+
+                #[cfg(unix)]
+                {
+                    use std::os::unix::fs::symlink;
+                    symlink(&entry_path, &symlink_path).map_err(|e| {
+                        IntError::Custom(format!("Failed to create symlink: {}", e))
+                    })?;
+                    Some(symlink_path)
+                }
+                #[cfg(not(unix))]
+                {
+                    None // Symlinks not supported/implemented for this platform yet
+                }
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
         // Create and save metadata
         self.report_progress(InstallProgress::Finalizing);
-        let mut metadata = self.create_metadata(&extracted.manifest, &install_path, installed_files);
+        let mut metadata =
+            self.create_metadata(&extracted.manifest, &install_path, installed_files);
         metadata.desktop_entry = desktop_entry;
         metadata.service_file = service_file;
         metadata.service_name = service_name;
+        metadata.bin_symlink = bin_symlink;
 
         metadata.save(extracted.manifest.install_scope)?;
 
@@ -300,9 +333,9 @@ impl Installer {
             })?;
 
             let src_path = entry.path();
-            let relative = src_path.strip_prefix(payload_dir).map_err(|e| {
-                IntError::Custom(format!("Failed to get relative path: {}", e))
-            })?;
+            let relative = src_path
+                .strip_prefix(payload_dir)
+                .map_err(|e| IntError::Custom(format!("Failed to get relative path: {}", e)))?;
 
             let dst_path = install_path.join(relative);
 
@@ -341,7 +374,6 @@ impl Installer {
 
     /// Execute installation script
     fn execute_script(&self, script_path: &Path, install_path: &Path) -> IntResult<()> {
-
         // Make script executable
         utils::make_executable(script_path)?;
 
@@ -364,11 +396,7 @@ impl Installer {
     }
 
     /// Create desktop entry
-    fn create_desktop_entry(
-        &self,
-        manifest: &Manifest,
-        install_path: &Path,
-    ) -> IntResult<PathBuf> {
+    fn create_desktop_entry(&self, manifest: &Manifest, install_path: &Path) -> IntResult<PathBuf> {
         let desktop_integration = DesktopIntegration::new();
         desktop_integration.create_entry(manifest, install_path)
     }
@@ -401,6 +429,7 @@ impl Installer {
             desktop_entry: None,
             service_file: None,
             service_name: None,
+            bin_symlink: None,
         }
     }
 

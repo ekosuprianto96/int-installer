@@ -36,3 +36,9 @@ Desktop.ini
 # Built binaries in root
 /int-engine
 /int-pack
+
+# Package payloads (large binaries)
+examples/*/payload/
+examples/**/*.tar.gz
+examples/**/*.zip
+examples/**/*.phar

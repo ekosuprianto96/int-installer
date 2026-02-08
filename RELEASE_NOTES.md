@@ -1,39 +1,23 @@
-# Release Notes - v0.2.0
+# Release Notes - v0.2.1
 
 ## Overview
-This release marks a significant milestone for the INT Installer project, introducing major stability improvements, enhanced installation flexibility, and core framework refinements.
+This release focuses on improving the user experience for CLI applications by introducing automatic PATH integration and streamlining the installation process.
 
 ## Key Changes
 
-### 🔧 Installation & Build Improvements
-- **Multiple Installation Paths**: Added support for three distinct installation methods:
-    1. **Automated Source Build**: Default `./install.sh` for building from scratch.
-    2. **GitHub Releases**: Support for installing pre-built binaries via `./install.sh --bin-only`.
-    3. **Manual Build**: Documented steps for developers who prefer manual control.
-- **Flexible Binary Detection**: The installation script now automatically detects binaries in the project root or the `target/release` directory.
-- **System Integration**: Improved automated registration of Desktop Entries and MIME types (`.int` files).
+### 🚀 Automatic PATH Integration
+- **Zero-Config CLI**: Binaries defined as an `entry` in the manifest are now automatically symlinked to the system PATH.
+  - User Scope: `~/.local/bin`
+  - System Scope: `/usr/local/bin`
+- **Smart Cleanup**: Automatically created symlinks are now tracked in metadata and will be cleanly removed during uninstallation.
+- **Improved Manifest Spec**: Updated documentation to reflect the new `entry` field behavior.
 
-### 🐛 Bug Fixes & Refinements
-- **Core Extractor Fix**: Resolved critical compilation errors in `int-core` related to `tempfile` persistence and type mismatches.
-- **API Modernization**: Replaced deprecated `into_path()` calls with modern `keep()` API in the extraction logic.
-- **Warning Cleanup**: Removed various compiler warnings regarding unused variables and code paths.
+### 🔧 Installer Improvements
+- **Simplified Post-Install**: Removed the need for manual symlink creation in `install.sh` scripts for `composer` and `vscode` examples.
+- **Enhanced Metadata**: Added `bin_symlink` tracking to `InstallMetadata` for better package management.
 
-### 📁 Project Structure
-- **Root Binaries Support**: Facilitated easier access by allowing binaries to reside in the project root while maintaining a clean environment via updated `.gitignore`.
-- **Workspace Versioning**: Updated the entire workspace to version `0.2.0`.
-
-## Installation
-To install the latest version:
-```bash
-git clone https://github.com/ekosuprianto96/int-installer
-cd int-installer
-sudo ./install.sh
-```
-
-For pre-built binaries:
-```bash
-sudo ./install.sh --bin-only
-```
+### 🐛 Bug Fixes
+- **Installer PATH Bug**: Fixed an issue where installed binaries were not accessible from the command line without manual intervention or PATH modification.
 
 ---
-*For full technical details, refer to the project documentation in the root directory.*
+*Thank you for using INT Installer! For more information, visit our [documentation](docs/manifest-spec.md).*

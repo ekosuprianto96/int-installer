@@ -25,6 +25,15 @@ This project is under active development. Current key components are ready for u
 - ✅ **Security**: Path validation, sandboxing, permission checks.
 - ✅ **Modular Architecture**: Clean, testable, extensible code.
 - ✅ **Linux Native**: Follows freedesktop.org standards.
+- ✅ **Automatic PATH Integration**: CLI binaries are automatically symlinked.
+
+## 🖼️ Screenshots
+
+<p align="center">
+  <img src="screenshoot/image-1.png" width="32%" />
+  <img src="screenshoot/image-2.png" width="32%" />
+  <img src="screenshoot/image-3.png" width="32%" />
+</p>
 
 ## 📦 Components
 

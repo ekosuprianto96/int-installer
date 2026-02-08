@@ -30,8 +30,8 @@
 /// let extractor = PackageExtractor::new();
 /// let package = extractor.extract("myapp.int")?;
 ///
-/// println!("Installing: {} v{}", 
-///     package.manifest.name, 
+/// println!("Installing: {} v{}",
+///     package.manifest.name,
 ///     package.manifest.package_version
 /// );
 ///
@@ -43,7 +43,6 @@
 /// # Ok(())
 /// # }
 /// ```
-
 // Public modules
 pub mod desktop;
 pub mod error;
@@ -97,6 +96,19 @@ impl Uninstaller {
         if let Some(ref desktop_entry) = metadata.desktop_entry {
             let desktop_integration = DesktopIntegration::new();
             desktop_integration.remove_entry(desktop_entry)?;
+        }
+
+        // Remove binary symlink if exists
+        if let Some(ref bin_symlink) = metadata.bin_symlink {
+            if bin_symlink.exists() {
+                std::fs::remove_file(bin_symlink).map_err(|e| {
+                    IntError::Custom(format!(
+                        "Failed to remove symlink {}: {}",
+                        bin_symlink.display(),
+                        e
+                    ))
+                })?;
+            }
         }
 
         // Execute pre-uninstall script if it was recorded

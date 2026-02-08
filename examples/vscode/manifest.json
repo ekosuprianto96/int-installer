@@ -1,0 +1,35 @@
+{
+    "version": "1.0",
+    "name": "vscode",
+    "display_name": "Visual Studio Code",
+    "package_version": "1.85.1",
+    "description": "Code editing. Redefined.",
+    "author": "Microsoft",
+    "install_scope": "user",
+    "install_path": "/home/ekosuprianto96/.local/share/vscode",
+    "entry": "code",
+    "service": false,
+    "desktop": {
+        "categories": [
+            "Development",
+            "IDE",
+            "TextEditor"
+        ],
+        "mime_types": [
+            "text/plain",
+            "text/x-code"
+        ],
+        "icon": "vscode",
+        "show_in_menu": true,
+        "keywords": [
+            "editor",
+            "code",
+            "programming",
+            "vscode"
+        ]
+    },
+    "required_space": 300000000,
+    "architecture": "x86_64",
+    "license": "MIT",
+    "homepage": "https://code.visualstudio.com"
+}

@@ -78,7 +78,7 @@ This document describes the complete format of the `manifest.json` file for INT 
 #### `entry`
 - **Type**: String
 - **Required**: No (required for desktop apps)
-- **Description**: Name of the main executable (relative to `install_path/bin/`)
+- **Description**: Name of the main executable (relative to `install_path/bin/`). If specified, the installer will automatically create a symlink in the system PATH directory (`~/.local/bin` for user, `/usr/local/bin` for system).
 - **Example**: `"myapp"`, `"myapp-gui"`
 
 #### `service`
