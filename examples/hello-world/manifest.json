@@ -1,0 +1,23 @@
+{
+  "version": "1.0",
+  "name": "hello-world",
+  "display_name": "Hello World",
+  "package_version": "1.0.0",
+  "description": "A simple hello world application",
+  "author": "INT Installer Team",
+  "install_scope": "user",
+  "install_path": "/home/user/.local/share/hello-world",
+  "entry": "hello",
+  "service": false,
+  "post_install": "scripts/install.sh",
+  "desktop": {
+    "categories": ["Utility"],
+    "icon": "utilities-terminal",
+    "show_in_menu": true,
+    "keywords": ["hello", "world", "demo"]
+  },
+  "required_space": 1000000,
+  "architecture": "x86_64",
+  "license": "MIT",
+  "homepage": "https://github.com/yourusername/int-installer"
+}

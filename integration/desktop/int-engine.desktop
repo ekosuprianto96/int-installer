@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=INT Installer
+Name[id]=INT Installer
+Comment=Install INT packages
+Comment[id]=Instal paket INT
+Exec=int-engine %f
+Icon=int-installer
+NoDisplay=true
+MimeType=application/x-int-package;
+Categories=System;
+Terminal=false

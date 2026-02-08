@@ -1,0 +1,22 @@
+[package]
+name = "int-pack"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "int-pack"
+path = "src/main.rs"
+
+[dependencies]
+int-core = { path = "../int-core" }
+clap = { version = "4.4", features = ["derive"] }
+tokio = { version = "1.0", features = ["full"] }
+anyhow.workspace = true
+serde_json.workspace = true
+walkdir.workspace = true
+tar.workspace = true
+flate2.workspace = true
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }

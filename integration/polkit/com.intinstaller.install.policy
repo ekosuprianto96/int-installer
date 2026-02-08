@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE policyconfig PUBLIC
+ "-//freedesktop//DTD PolicyKit Policy Configuration 1.0//EN"
+ "http://www.freedesktop.org/standards/PolicyKit/1/policyconfig.dtd">
+<policyconfig>
+  <vendor>INT Installer</vendor>
+  <vendor_url>https://github.com/ekosuprianto96/int-installer</vendor_url>
+  
+  <action id="com.intinstaller.install.system">
+    <description>Install application system-wide</description>
+    <description xml:lang="id">Instal aplikasi ke seluruh sistem</description>
+    <message>Authentication is required to install application system-wide</message>
+    <message xml:lang="id">Autentikasi diperlukan untuk menginstal aplikasi ke seluruh sistem</message>
+    <defaults>
+      <allow_any>auth_admin</allow_any>
+      <allow_inactive>auth_admin</allow_inactive>
+      <allow_active>auth_admin_keep</allow_active>
+    </defaults>
+  </action>
+  
+  <action id="com.intinstaller.uninstall.system">
+    <description>Uninstall system-wide application</description>
+    <description xml:lang="id">Hapus aplikasi dari seluruh sistem</description>
+    <message>Authentication is required to uninstall system-wide application</message>
+    <message xml:lang="id">Autentikasi diperlukan untuk menghapus aplikasi dari seluruh sistem</message>
+    <defaults>
+      <allow_any>auth_admin</allow_any>
+      <allow_inactive>auth_admin</allow_inactive>
+      <allow_active>auth_admin_keep</allow_active>
+    </defaults>
+  </action>
+</policyconfig>
