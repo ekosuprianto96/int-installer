@@ -75,6 +75,10 @@ pub struct PackageExtractor {
     validator: SecurityValidator,
     /// Progress callback
     progress_callback: Option<Box<dyn Fn(u64, u64) + Send>>,
+    /// Log callback
+    log_callback: Option<Box<dyn Fn(String) + Send>>,
+    /// Whether to verify GPG signature
+    pub verify_signature: bool,
 }
 
 impl PackageExtractor {
@@ -83,6 +87,8 @@ impl PackageExtractor {
         Self {
             validator: SecurityValidator::new(),
             progress_callback: None,
+            log_callback: None,
+            verify_signature: false,
         }
     }
 
@@ -94,6 +100,15 @@ impl PackageExtractor {
         F: Fn(u64, u64) + Send + 'static,
     {
         self.progress_callback = Some(Box::new(callback));
+        self
+    }
+
+    /// Set log callback
+    pub fn with_log<F>(mut self, callback: F) -> Self
+    where
+        F: Fn(String) + Send + 'static,
+    {
+        self.log_callback = Some(Box::new(callback));
         self
     }
 
@@ -146,6 +161,18 @@ impl PackageExtractor {
 
         let manifest = Manifest::from_file(&manifest_path)?;
         manifest.validate()?;
+
+        // Verify GPG signature if requested or embedded
+        if manifest.signature.is_some() {
+            self.verify_embedded_signature(&manifest)?;
+        } else if self.verify_signature {
+            self.verify_gpg_signature(package_path)?;
+        }
+
+        // Verify file hashes if present
+        if let Some(ref hashes) = manifest.file_hashes {
+            self.verify_file_hashes(&extract_dir, hashes)?;
+        }
 
         // Locate package components
         let payload_dir = extract_dir.join("payload");
@@ -222,6 +249,11 @@ impl PackageExtractor {
             // Report progress
             if let Some(ref callback) = self.progress_callback {
                 callback(extracted_size, total_size);
+            }
+
+            // Report log
+            if let Some(ref callback) = self.log_callback {
+                callback(format!("Extracting: {}", entry_path.display()));
             }
 
             // Create parent directories
@@ -318,6 +350,155 @@ impl PackageExtractor {
             "manifest.json not found in package".to_string(),
         ))
     }
+
+    /// Verify GPG signature of a package (detached)
+    fn verify_gpg_signature(&self, package_path: &Path) -> IntResult<()> {
+        let sig_path = package_path.with_extension("int.sig");
+        if !sig_path.exists() {
+            return Err(IntError::InvalidSignature(format!(
+                "Signature file not found: {}",
+                sig_path.display()
+            )));
+        }
+
+        if let Some(ref callback) = self.log_callback {
+            callback(format!(
+                "Verifying external GPG signature for {}...",
+                package_path.display()
+            ));
+        }
+
+        use std::process::Command;
+        let output = Command::new("gpg")
+            .arg("--verify")
+            .arg(&sig_path)
+            .arg(package_path)
+            .output()
+            .map_err(|e| IntError::Custom(format!("Failed to execute gpg: {}", e)))?;
+
+        if !output.status.success() {
+            let err = String::from_utf8_lossy(&output.stderr);
+            return Err(IntError::InvalidSignature(format!(
+                "GPG verification failed: {}",
+                err
+            )));
+        }
+
+        if let Some(ref callback) = self.log_callback {
+            callback("GPG signature verified successfully.".to_string());
+        }
+
+        Ok(())
+    }
+
+    /// Verify embedded signature in manifest
+    fn verify_embedded_signature(&self, manifest: &Manifest) -> IntResult<()> {
+        let signature = match manifest.signature {
+            Some(ref s) => s,
+            None => return Ok(()),
+        };
+
+        if let Some(ref callback) = self.log_callback {
+            callback("Verifying embedded GPG signature...".to_string());
+        }
+
+        // Create a manifest copy without the signature to verify it
+        let mut manifest_to_verify = manifest.clone();
+        manifest_to_verify.signature = None;
+        let canonical_json = manifest_to_verify.to_canonical_string()?;
+
+        use std::io::Write;
+        use std::process::Command;
+
+        // We use gpg --verify by stdin for the signature and file for the data
+        // Or simpler: put signature in temp file, data in temp file
+        let mut sig_file = tempfile::NamedTempFile::new()
+            .map_err(|e| IntError::Custom(format!("Failed to create temp sig file: {}", e)))?;
+        sig_file
+            .write_all(signature.as_bytes())
+            .map_err(|e| IntError::IoError(e))?;
+
+        let mut data_file = tempfile::NamedTempFile::new()
+            .map_err(|e| IntError::Custom(format!("Failed to create temp data file: {}", e)))?;
+        data_file
+            .write_all(canonical_json.as_bytes())
+            .map_err(|e| IntError::IoError(e))?;
+
+        let output = Command::new("gpg")
+            .arg("--verify")
+            .arg(sig_file.path())
+            .arg(data_file.path())
+            .output()
+            .map_err(|e| IntError::Custom(format!("Failed to execute gpg: {}", e)))?;
+
+        if !output.status.success() {
+            let err = String::from_utf8_lossy(&output.stderr);
+            return Err(IntError::InvalidSignature(format!(
+                "Embedded GPG verification failed: {}",
+                err
+            )));
+        }
+
+        if let Some(ref callback) = self.log_callback {
+            callback("Embedded GPG signature verified successfully.".to_string());
+        }
+
+        Ok(())
+    }
+
+    /// Verify file hashes against extracted files
+    fn verify_file_hashes(
+        &self,
+        extract_dir: &Path,
+        hashes: &std::collections::BTreeMap<String, String>,
+    ) -> IntResult<()> {
+        if let Some(ref callback) = self.log_callback {
+            callback(format!("Verifying hashes for {} files...", hashes.len()));
+        }
+
+        for (rel_path, expected_hash) in hashes {
+            let full_path = extract_dir.join(rel_path);
+            if !full_path.exists() {
+                return Err(IntError::InvalidPackage(format!(
+                    "File missing from package: {}",
+                    rel_path
+                )));
+            }
+
+            // Calculate SHA256
+            let hash = self.calculate_sha256(&full_path)?;
+            if hash != *expected_hash {
+                return Err(IntError::InvalidSignature(format!(
+                    "Hash mismatch for file {}: expected {}, found {}",
+                    rel_path, expected_hash, hash
+                )));
+            }
+        }
+
+        if let Some(ref callback) = self.log_callback {
+            callback("All file hashes verified successfully.".to_string());
+        }
+
+        Ok(())
+    }
+
+    /// Calculate SHA256 hash of a file
+    fn calculate_sha256(&self, path: &Path) -> IntResult<String> {
+        use sha2::{Digest, Sha256};
+        let mut file = File::open(path).map_err(IntError::IoError)?;
+        let mut hasher = Sha256::new();
+        let mut buffer = [0u8; 8192];
+
+        loop {
+            let count = file.read(&mut buffer).map_err(IntError::IoError)?;
+            if count == 0 {
+                break;
+            }
+            hasher.update(&buffer[..count]);
+        }
+
+        Ok(format!("{:x}", hasher.finalize()))
+    }
 }
 
 impl Default for PackageExtractor {
@@ -329,7 +510,8 @@ impl Default for PackageExtractor {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::io::Write;
+    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::sync::Arc;
     use tempfile::TempDir;
 
     fn create_test_package() -> (TempDir, PathBuf) {
@@ -412,11 +594,15 @@ mod tests {
     fn test_progress_callback() {
         let (_temp, package_path) = create_test_package();
 
-        let mut progress_called = false;
-        let extractor = PackageExtractor::new().with_progress(|current, total| {
+        let progress_called = Arc::new(AtomicBool::new(false));
+        let progress_called_clone = Arc::clone(&progress_called);
+
+        let extractor = PackageExtractor::new().with_progress(move |current, total| {
             assert!(current <= total);
+            progress_called_clone.store(true, Ordering::SeqCst);
         });
 
         let _extracted = extractor.extract(&package_path).unwrap();
+        assert!(progress_called.load(Ordering::SeqCst));
     }
 }

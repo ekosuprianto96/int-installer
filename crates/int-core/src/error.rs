@@ -3,7 +3,6 @@
 ///
 /// This module defines all possible errors that can occur during
 /// package parsing, extraction, installation, and system integration.
-
 use std::path::PathBuf;
 use std::{error::Error as StdError, fmt};
 
@@ -58,7 +57,7 @@ pub enum IntError {
     PathTraversalAttempt(PathBuf),
 
     /// Invalid or unverified signature
-    InvalidSignature,
+    InvalidSignature(String),
 
     /// Publisher not in trusted list
     UntrustedPublisher(String),
@@ -117,7 +116,10 @@ pub type IntResult<T> = Result<T, IntError>;
 /// Validation-specific errors
 #[derive(Debug)]
 pub enum ValidationError {
-    InvalidValue { field: String, value: String },
+    InvalidValue {
+        field: String,
+        value: String,
+    },
 
     OutOfRange {
         field: String,
@@ -130,7 +132,10 @@ pub enum ValidationError {
 
     UnsupportedFileType(String),
 
-    ChecksumMismatch { expected: String, actual: String },
+    ChecksumMismatch {
+        expected: String,
+        actual: String,
+    },
 }
 
 // Implement Display for IntError (replacing thiserror derive to avoid AsDynError generation)
@@ -143,26 +148,53 @@ impl fmt::Display for IntError {
             IntError::MissingField(s) => write!(f, "Missing required field in manifest: {}", s),
 
             IntError::InsufficientPermissions(s) => write!(f, "Insufficient permissions: {}", s),
-            IntError::TargetPathExists(p) => write!(f, "Target path already exists: {}", p.display()),
-            IntError::DiskSpaceInsufficient { required, available } => {
-                write!(f, "Insufficient disk space: required {} bytes, available {} bytes", required, available)
+            IntError::TargetPathExists(p) => {
+                write!(f, "Target path already exists: {}", p.display())
             }
-            IntError::DirectoryCreationFailed(s) => write!(f, "Failed to create installation directory: {}", s),
-            IntError::FileCopyFailed { source, dest, reason } => {
-                write!(f, "Failed to copy file from {} to {}: {}", source, dest, reason)
+            IntError::DiskSpaceInsufficient {
+                required,
+                available,
+            } => {
+                write!(
+                    f,
+                    "Insufficient disk space: required {} bytes, available {} bytes",
+                    required, available
+                )
+            }
+            IntError::DirectoryCreationFailed(s) => {
+                write!(f, "Failed to create installation directory: {}", s)
+            }
+            IntError::FileCopyFailed {
+                source,
+                dest,
+                reason,
+            } => {
+                write!(
+                    f,
+                    "Failed to copy file from {} to {}: {}",
+                    source, dest, reason
+                )
             }
 
-            IntError::ServiceRegistrationFailed(s) => write!(f, "Failed to register systemd service: {}", s),
+            IntError::ServiceRegistrationFailed(s) => {
+                write!(f, "Failed to register systemd service: {}", s)
+            }
             IntError::DesktopEntryFailed(s) => write!(f, "Failed to create desktop entry: {}", s),
             IntError::MimeRegistrationFailed(s) => write!(f, "Failed to register MIME type: {}", s),
 
-            IntError::PathTraversalAttempt(p) => write!(f, "Path traversal attempt detected: {}", p.display()),
-            IntError::InvalidSignature => write!(f, "Invalid package signature"),
+            IntError::PathTraversalAttempt(p) => {
+                write!(f, "Path traversal attempt detected: {}", p.display())
+            }
+            IntError::InvalidSignature(s) => write!(f, "Invalid package signature: {}", s),
             IntError::UntrustedPublisher(s) => write!(f, "Untrusted publisher: {}", s),
             IntError::InvalidScript(s) => write!(f, "Invalid script: {}", s),
 
             IntError::ScriptExecutionFailed { script, exit_code } => {
-                write!(f, "Script execution failed: {} (exit code: {})", script, exit_code)
+                write!(
+                    f,
+                    "Script execution failed: {} (exit code: {})",
+                    script, exit_code
+                )
             }
             IntError::ScriptTimeout(s) => write!(f, "Script execution timeout: {}", s),
 
@@ -173,9 +205,17 @@ impl fmt::Display for IntError {
 
             IntError::ValidationError(s) => write!(f, "Manifest validation failed: {}", s),
             IntError::UnsupportedVersion { found, expected } => {
-                write!(f, "Unsupported manifest version: {}, expected: {}", found, expected)
+                write!(
+                    f,
+                    "Unsupported manifest version: {}, expected: {}",
+                    found, expected
+                )
             }
-            IntError::InvalidScope(s) => write!(f, "Invalid installation scope: {} (expected: user or system)", s),
+            IntError::InvalidScope(s) => write!(
+                f,
+                "Invalid installation scope: {} (expected: user or system)",
+                s
+            ),
 
             IntError::PackageNotInstalled(s) => write!(f, "Package not installed: {}", s),
             IntError::MetadataCorrupted(s) => write!(f, "Installation metadata corrupted: {}", s),
@@ -210,13 +250,26 @@ impl fmt::Display for ValidationError {
             ValidationError::InvalidValue { field, value } => {
                 write!(f, "Invalid field value: {} = {}", field, value)
             }
-            ValidationError::OutOfRange { field, min, max, value } => {
-                write!(f, "Field out of range: {} (min: {}, max: {}, got: {})", field, min, max, value)
+            ValidationError::OutOfRange {
+                field,
+                min,
+                max,
+                value,
+            } => {
+                write!(
+                    f,
+                    "Field out of range: {} (min: {}, max: {}, got: {})",
+                    field, min, max, value
+                )
             }
             ValidationError::MalformedPath(s) => write!(f, "Malformed path: {}", s),
             ValidationError::UnsupportedFileType(s) => write!(f, "Unsupported file type: {}", s),
             ValidationError::ChecksumMismatch { expected, actual } => {
-                write!(f, "Checksum mismatch: expected {}, got {}", expected, actual)
+                write!(
+                    f,
+                    "Checksum mismatch: expected {}, got {}",
+                    expected, actual
+                )
             }
         }
     }
@@ -267,7 +320,10 @@ impl IntError {
                     path.display()
                 )
             }
-            IntError::DiskSpaceInsufficient { required, available } => {
+            IntError::DiskSpaceInsufficient {
+                required,
+                available,
+            } => {
                 format!(
                     "Ruang disk tidak cukup. Dibutuhkan {} MB, tersedia {} MB.",
                     required / 1_000_000,
@@ -301,7 +357,7 @@ mod tests {
         let err = IntError::TargetPathExists(PathBuf::from("/tmp/test"));
         assert!(err.is_recoverable());
 
-        let err = IntError::InvalidSignature;
+        let err = IntError::InvalidSignature("test".to_string());
         assert!(!err.is_recoverable());
     }
 

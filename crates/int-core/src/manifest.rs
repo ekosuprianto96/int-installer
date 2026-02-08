@@ -4,6 +4,7 @@
 /// It provides type-safe parsing, validation, and access to package metadata.
 use crate::error::{IntError, IntResult};
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 /// Current supported manifest version
@@ -84,18 +85,18 @@ pub struct Manifest {
     pub name: String,
 
     /// Package display name (optional)
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub display_name: Option<String>,
 
     /// Package version (semver recommended)
     pub package_version: String,
 
     /// Package description
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
 
     /// Package author/vendor
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub author: Option<String>,
 
     /// Installation scope
@@ -105,7 +106,7 @@ pub struct Manifest {
     pub install_path: PathBuf,
 
     /// Main executable name (relative to install_path/bin)
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub entry: Option<String>,
 
     /// Whether to install as systemd service
@@ -113,39 +114,39 @@ pub struct Manifest {
     pub service: bool,
 
     /// Service name (defaults to package name)
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub service_name: Option<String>,
 
     /// Post-install script path (relative to package root)
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub post_install: Option<PathBuf>,
 
     /// Pre-uninstall script path (relative to package root)
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub pre_uninstall: Option<PathBuf>,
 
     /// Desktop integration settings
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub desktop: Option<DesktopEntry>,
 
     /// Required dependencies
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub dependencies: Vec<Dependency>,
 
     /// Minimum required disk space (bytes)
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub required_space: Option<u64>,
 
     /// Architecture requirement
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub architecture: Option<String>,
 
     /// License identifier
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub license: Option<String>,
 
     /// Homepage URL
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub homepage: Option<String>,
 
     /// Whether to auto-launch after installation
@@ -153,8 +154,17 @@ pub struct Manifest {
     pub auto_launch: bool,
 
     /// Command to launch the application (optional, defaults to entry)
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub launch_command: Option<String>,
+
+    /// Embedded GPG signature of the manifest (v0.3.0+)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub signature: Option<String>,
+
+    /// Map of file paths (relative to package root) to SHA256 hashes
+    /// Using BTreeMap instead of HashMap to ensure deterministic serialization order
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub file_hashes: Option<BTreeMap<String, String>>,
 }
 
 fn default_version() -> String {
@@ -321,9 +331,15 @@ impl Manifest {
         }
     }
 
-    /// Serialize to JSON string
+    /// Serialize to JSON string (pretty)
     pub fn to_string(&self) -> IntResult<String> {
         serde_json::to_string_pretty(self)
+            .map_err(|e| IntError::Custom(format!("Failed to serialize manifest: {}", e)))
+    }
+
+    /// Serialize to compact canonical JSON string for signing/verification
+    pub fn to_canonical_string(&self) -> IntResult<String> {
+        serde_json::to_string(self)
             .map_err(|e| IntError::Custom(format!("Failed to serialize manifest: {}", e)))
     }
 }
@@ -369,6 +385,8 @@ mod tests {
             homepage: Some("https://example.com".to_string()),
             auto_launch: false,
             launch_command: None,
+            signature: None,
+            file_hashes: None,
         }
     }
 

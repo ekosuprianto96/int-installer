@@ -10,11 +10,12 @@ This project is under active development. Current key components are ready for u
   - **Core Logic (`int-core`)**: Manifest parsing, payload extraction, installation validation.
   - **Packaging Tool (`int-pack`)**: CLI to create standard `.int` packages from source directories.
   - **Installer Engine (`int-engine`)**: Tauri-based GUI Installer (Vue.js + Rust) with a step-by-step wizard.
-  - **System Integration**: Desktop entries (`.desktop`), MIME types association (`.int`), and basic systemd services.
+  - **System Integration**: Desktop entries (`.desktop`), MIME types, and systemd services.
+  - **PolicyKit Integration**: System-wide installation support using `pkexec`.
+  - **Security Signatures**: GPG signature verification for packages.
+  - **Real-time Logging**: Live installation logs in GUI and CLI.
 
 - **🚧 Work in Progress / Planned**:
-  - **PolicyKit Integration**: Currently, installing to system directories requires running the installer via `sudo`. Native Polkit implementation is in progress.
-  - **Security Signatures**: GPG signature verification for packages is not yet implemented.
   - **Auto Update**: Automatic application update mechanism is not yet available.
 
 ## 🎯 Key Features
@@ -134,6 +135,9 @@ int-pack init myapp
 
 # Build package
 int-pack build myapp --out myapp.int
+
+# Build and sign package
+int-pack build myapp --sign
 ```
 
 ### Installing a Package
@@ -182,8 +186,9 @@ INT Installer is designed with security as a priority:
 - ✅ **Path Validation**: Prevents path traversal attacks
 - ✅ **Sandboxed Execution**: Scripts run with strict control
 - ✅ **Permission Checks**: User vs system scope validation
-- ✅ **Signature Verification**: (Planned) GPG signature support
+- ✅ **Signature Verification**: GPG signature support (`.int.sig`)
 - ✅ **Safe Uninstall**: Prevents deletion of system directories
+- ✅ **Elevated Privileges**: Secure elevation via PolicyKit (`pkexec`)
 
 ## 📝 Manifest Example
 
@@ -286,8 +291,9 @@ You may choose either license for your use.
 - [x] systemd integration
 - [x] Desktop entry support
 - [x] Tauri frontend complete UI
-- [ ] PolicyKit integration
-- [ ] GPG signature verification
+- [x] PolicyKit integration
+- [x] GPG signature verification
+- [x] Real-time installation logs
 - [ ] Update mechanism
 - [ ] Plugin system
 - [ ] Flatpak/AppImage conversion

@@ -1,8 +1,10 @@
+use crate::state::AppState;
+use int_core::{
+    InstallConfig, InstallProgress, InstallScope, Installer, PackageExtractor, Uninstaller,
+};
+use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use tauri::{Emitter, State, WebviewWindow};
-use int_core::{PackageExtractor, Installer, InstallConfig, InstallProgress, InstallScope, Uninstaller};
-use crate::state::AppState;
-use serde::{Serialize, Deserialize};
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct PackageInfo {
@@ -19,13 +21,17 @@ pub struct PackageInfo {
 }
 
 #[tauri::command]
-pub async fn validate_package(path: String, state: State<'_, AppState>) -> Result<PackageInfo, String> {
+pub async fn validate_package(
+    path: String,
+    state: State<'_, AppState>,
+) -> Result<PackageInfo, String> {
     let path = PathBuf::from(path);
     let extractor = PackageExtractor::new();
-    
-    let manifest = extractor.validate_package(&path)
+
+    let manifest = extractor
+        .validate_package(&path)
         .map_err(|e| format!("Validation error: {}", e))?;
-    
+
     let info = PackageInfo {
         name: manifest.name.clone(),
         display_name: manifest.display_name().to_string(),
@@ -50,9 +56,87 @@ pub async fn install_package(
     window: WebviewWindow,
     path: String,
     install_path: Option<String>,
-    start_service: bool
+    start_service: bool,
+    scope: String,
 ) -> Result<(), String> {
-    let path = PathBuf::from(path);
+    let install_scope = match scope.as_str() {
+        "system" => InstallScope::System,
+        _ => InstallScope::User,
+    };
+
+    // Check if we need elevation
+    if install_scope == InstallScope::System && !int_core::security::has_root_privileges() {
+        let _ = window.emit("install-log", serde_json::json!({ "message": "Elevation required for system installation. Requesting via pkexec..." }));
+
+        let current_exe = std::env::current_exe()
+            .map_err(|e| format!("Failed to get current executable: {}", e))?;
+
+        let mut cmd = std::process::Command::new("pkexec");
+        cmd.arg(current_exe).arg(&path).arg("--scope").arg("system");
+
+        if let Some(ref p) = install_path {
+            cmd.arg("--install-path").arg(p);
+        }
+
+        if start_service {
+            cmd.arg("--start-service");
+        }
+
+        // Set pipe for stdout/stderr to capture logs
+        cmd.stdout(std::process::Stdio::piped());
+        cmd.stderr(std::process::Stdio::piped());
+
+        let mut child = cmd.spawn().map_err(|e| {
+            format!(
+                "Failed to execute pkexec: {}. Make sure PolicyKit is installed.",
+                e
+            )
+        })?;
+
+        // Handle stdout/stderr in separate threads to emit logs
+        let stdout = child.stdout.take().unwrap();
+        let stderr = child.stderr.take().unwrap();
+
+        let window_clone = window.clone();
+        std::thread::spawn(move || {
+            use std::io::{BufRead, BufReader};
+            let reader = BufReader::new(stdout);
+            for line in reader.lines() {
+                if let Ok(l) = line {
+                    let _ = window_clone.emit("install-log", serde_json::json!({ "message": l }));
+                }
+            }
+        });
+
+        let window_clone2 = window.clone();
+        std::thread::spawn(move || {
+            use std::io::{BufRead, BufReader};
+            let reader = BufReader::new(stderr);
+            for line in reader.lines() {
+                if let Ok(l) = line {
+                    let _ = window_clone2.emit(
+                        "install-log",
+                        serde_json::json!({ "message": format!("Error: {}", l) }),
+                    );
+                }
+            }
+        });
+
+        let status = child
+            .wait()
+            .map_err(|e| format!("Failed to wait for pkexec: {}", e))?;
+
+        if !status.success() {
+            return Err(
+                "Installation with elevated privileges failed. Check logs for details.".to_string(),
+            );
+        }
+
+        let _ = window.emit("install-progress-completed", serde_json::json!({}));
+        return Ok(());
+    }
+
+    let path_buf = PathBuf::from(path);
     let config = InstallConfig {
         install_path: install_path.map(PathBuf::from),
         start_service,
@@ -69,23 +153,28 @@ pub async fn install_package(
             InstallProgress::RegisteringService => "install-progress-service",
             InstallProgress::CreatingDesktopEntry => "install-progress-desktop",
             InstallProgress::Finalizing => "install-progress-finalizing",
+            InstallProgress::Log { .. } => "install-log",
             InstallProgress::Completed => "install-progress-completed",
         };
-        
+
         let payload = match progress {
             InstallProgress::Extracting { current, total } => {
                 serde_json::json!({ "current": current, "total": total })
-            },
+            }
             InstallProgress::CopyingFiles { current, total } => {
                 serde_json::json!({ "current": current as u64, "total": total as u64 })
-            },
-            _ => serde_json::json!({})
+            }
+            InstallProgress::Log { message } => {
+                serde_json::json!({ "message": message })
+            }
+            _ => serde_json::json!({}),
         };
 
         let _ = window.emit(event_name, payload);
     });
 
-    installer.install(&path, config)
+    installer
+        .install(&path_buf, config)
         .map_err(|e| format!("Installation failed: {}", e))?;
 
     Ok(())
@@ -97,23 +186,27 @@ pub async fn list_installed(scope: String) -> Result<Vec<PackageInfo>, String> {
         "system" => InstallScope::System,
         _ => InstallScope::User,
     };
-    
+
     let uninstaller = Uninstaller::new();
-    let packages = uninstaller.list_installed(scope)
+    let packages = uninstaller
+        .list_installed(scope)
         .map_err(|e| format!("Failed to list packages: {}", e))?;
-    
-    Ok(packages.into_iter().map(|p| PackageInfo {
-        name: p.package_name.clone(),
-        display_name: p.package_name,
-        version: p.package_version,
-        description: String::new(),
-        author: String::new(),
-        license: String::new(),
-        install_scope: format!("{:?}", scope),
-        install_path: String::new(),
-        auto_launch: false,
-        launch_command: None,
-    }).collect())
+
+    Ok(packages
+        .into_iter()
+        .map(|p| PackageInfo {
+            name: p.package_name.clone(),
+            display_name: p.package_name,
+            version: p.package_version,
+            description: String::new(),
+            author: String::new(),
+            license: String::new(),
+            install_scope: format!("{:?}", scope),
+            install_path: String::new(),
+            auto_launch: false,
+            launch_command: None,
+        })
+        .collect())
 }
 
 #[tauri::command]
@@ -122,18 +215,19 @@ pub async fn uninstall_package(name: String, scope: String) -> Result<(), String
         "system" => InstallScope::System,
         _ => InstallScope::User,
     };
-    
+
     let uninstaller = Uninstaller::new();
-    uninstaller.uninstall(&name, scope)
+    uninstaller
+        .uninstall(&name, scope)
         .map_err(|e| format!("Uninstallation failed: {}", e))?;
-    
+
     Ok(())
 }
 
 #[tauri::command]
 pub async fn launch_app(command: String, install_path: String) -> Result<(), String> {
     let install_path = std::path::PathBuf::from(install_path);
-    
+
     // Command can be absolute or relative to install_path/bin
     let full_command = if std::path::Path::new(&command).is_absolute() {
         std::path::PathBuf::from(&command)
@@ -142,7 +236,10 @@ pub async fn launch_app(command: String, install_path: String) -> Result<(), Str
     };
 
     if !full_command.exists() {
-        return Err(format!("Launch command not found: {}", full_command.display()));
+        return Err(format!(
+            "Launch command not found: {}",
+            full_command.display()
+        ));
     }
 
     std::process::Command::new(full_command)
@@ -167,7 +264,7 @@ pub fn get_launch_args() -> Option<String> {
         // Simple check: return the last argument if it looks like a file path
         // This handles cases where there might be other flags
         // For simple association, the OS passes the file as an argument.
-         for arg in args.iter().skip(1) {
+        for arg in args.iter().skip(1) {
             if arg.ends_with(".int") {
                 return Some(arg.clone());
             }

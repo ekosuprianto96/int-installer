@@ -59,7 +59,8 @@ const startInstallation = async () => {
     await invoke('install_package', {
       path: packagePath.value,
       installPath: installPath.value,
-      startService: true
+      startService: true,
+      scope: packageInfo.value?.install_scope?.toLowerCase() || 'user'
     })
     currentStep.value = 'complete'
   } catch (e: any) {
@@ -97,26 +98,42 @@ const handleCancel = async () => {
   await invoke('exit_app')
 }
 
-// Listen for progress events
+const logs = ref<string[]>([])
+
+// Installation has multiple phases, assign progress percentage to each
+// Total phases: extracting -> copying -> permissions -> script -> service -> desktop -> complete
+// Assign percentages: extracting(0-30%), copying(30-60%), other phases(60-95%), complete(100%)
 listen('install-progress-extracting', (event: any) => {
-  progress.value = { ...event.payload, status: 'Extracting files...' }
+  // Extraction: 0% to 30% based on files extracted
+  const extractPercent = event.payload.total > 0 
+    ? Math.round((event.payload.current / event.payload.total) * 30) 
+    : 0
+  progress.value = { current: extractPercent, total: 100, status: 'Extracting files...' }
 })
 listen('install-progress-copying', (event: any) => {
-  progress.value = { ...event.payload, status: 'Copying files...' }
+  // Copying: 30% to 60% based on files copied
+  const copyPercent = event.payload.total > 0 
+    ? 30 + Math.round((event.payload.current / event.payload.total) * 30)
+    : 30
+  progress.value = { current: copyPercent, total: 100, status: 'Copying files...' }
 })
 listen('install-progress-permissions', () => {
-  progress.value.status = 'Setting permissions...'
+  progress.value = { current: 65, total: 100, status: 'Setting permissions...' }
 })
 listen('install-progress-script', () => {
-  progress.value.status = 'Running post-install script...'
+  progress.value = { current: 75, total: 100, status: 'Running post-install script...' }
 })
 listen('install-progress-service', () => {
-  progress.value.status = 'Registering system service...'
+  progress.value = { current: 85, total: 100, status: 'Registering system service...' }
 })
 listen('install-progress-desktop', () => {
-  progress.value.status = 'Creating desktop entry...'
+  progress.value = { current: 92, total: 100, status: 'Creating desktop entry...' }
+})
+listen('install-log', (event: any) => {
+  logs.value.push(event.payload.message)
 })
 listen('install-progress-completed', () => {
+  progress.value = { current: 100, total: 100, status: 'Installation complete!' }
   currentStep.value = 'complete'
 })
 </script>
@@ -157,6 +174,7 @@ listen('install-progress-completed', () => {
         <InstallingStep 
           v-if="currentStep === 'installing'" 
           :progress="progress" 
+          :logs="logs"
         />
         
         <CompleteStep 

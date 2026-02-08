@@ -2,7 +2,6 @@
 ///
 /// This module provides security checks and validation to prevent
 /// malicious packages from compromising the system.
-
 use crate::error::{IntError, IntResult};
 use std::path::{Path, PathBuf};
 
@@ -20,7 +19,7 @@ impl Default for SecurityValidator {
     fn default() -> Self {
         Self {
             allow_absolute_paths: false,
-            max_file_size: 1_000_000_000, // 1 GB per file
+            max_file_size: 1_000_000_000,  // 1 GB per file
             max_total_size: 5_000_000_000, // 5 GB total
         }
     }
@@ -130,19 +129,8 @@ impl SecurityValidator {
     pub fn is_safe_to_delete(&self, path: &Path) -> bool {
         // Never delete these critical paths
         let critical_paths = [
-            "/",
-            "/bin",
-            "/boot",
-            "/dev",
-            "/etc",
-            "/lib",
-            "/lib64",
-            "/proc",
-            "/root",
-            "/sbin",
-            "/sys",
-            "/usr",
-            "/var",
+            "/", "/bin", "/boot", "/dev", "/etc", "/lib", "/lib64", "/proc", "/root", "/sbin",
+            "/sys", "/usr", "/var",
         ];
 
         let path_str = path.to_string_lossy();
@@ -193,8 +181,7 @@ fn normalize_path(path: &Path) -> PathBuf {
 fn has_parent_dir_component(path: &Path) -> bool {
     use std::path::Component;
 
-    path.components()
-        .any(|c| matches!(c, Component::ParentDir))
+    path.components().any(|c| matches!(c, Component::ParentDir))
 }
 
 /// Check if current process has root/admin privileges
@@ -252,7 +239,7 @@ pub fn sanitize_filename(name: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::fs;
+    // std::fs removed
     use tempfile::TempDir;
 
     #[test]
@@ -317,7 +304,9 @@ mod tests {
         let validator = SecurityValidator::new();
 
         assert!(validator.validate_file_size(1000).is_ok());
-        assert!(validator.validate_file_size(validator.max_file_size).is_ok());
+        assert!(validator
+            .validate_file_size(validator.max_file_size)
+            .is_ok());
         assert!(validator
             .validate_file_size(validator.max_file_size + 1)
             .is_err());

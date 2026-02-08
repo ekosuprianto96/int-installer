@@ -3,12 +3,12 @@ use std::path::PathBuf;
 use tracing_subscriber;
 
 mod builder;
-mod validator;
 mod template;
+mod validator;
 
 use builder::PackageBuilder;
-use validator::PackageValidator;
 use template::TemplateGenerator;
+use validator::PackageValidator;
 
 #[derive(Parser)]
 #[command(name = "int-pack")]
@@ -47,6 +47,14 @@ enum Commands {
         /// Compress with gzip
         #[arg(short, long)]
         compress: bool,
+
+        /// Sign the package with GPG
+        #[arg(short, long)]
+        sign: bool,
+
+        /// GPG key ID to use for signing
+        #[arg(short, long)]
+        key: Option<String>,
     },
 
     /// Validate manifest
@@ -68,9 +76,7 @@ async fn main() -> anyhow::Result<()> {
 
     // Setup logging
     let log_level = if cli.verbose { "debug" } else { "info" };
-    tracing_subscriber::fmt()
-        .with_env_filter(log_level)
-        .init();
+    tracing_subscriber::fmt().with_env_filter(log_level).init();
 
     match cli.command {
         Commands::Init { name, output } => {
@@ -79,9 +85,15 @@ async fn main() -> anyhow::Result<()> {
             println!("✓ Package template created successfully");
         }
 
-        Commands::Build { path, output, compress } => {
+        Commands::Build {
+            path,
+            output,
+            compress,
+            sign,
+            key,
+        } => {
             let builder = PackageBuilder::new(path);
-            let output_path = builder.build(output, compress).await?;
+            let output_path = builder.build(output, compress, sign, key).await?;
             println!("✓ Package built successfully: {}", output_path.display());
         }
 

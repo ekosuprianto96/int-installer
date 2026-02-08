@@ -1551,7 +1551,7 @@ dependencies = [
 
 [[package]]
 name = "int-core"
-version = "0.2.1"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "chrono",
@@ -1560,6 +1560,7 @@ dependencies = [
  "path-clean",
  "serde",
  "serde_json",
+ "sha2",
  "tar",
  "tempfile",
  "thiserror 1.0.69",
@@ -1569,7 +1570,7 @@ dependencies = [
 
 [[package]]
 name = "int-engine"
-version = "0.2.1"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "clap",
@@ -1587,14 +1588,16 @@ dependencies = [
 
 [[package]]
 name = "int-pack"
-version = "0.2.1"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "clap",
  "flate2",
  "int-core",
  "serde_json",
+ "sha2",
  "tar",
+ "tempfile",
  "tokio",
  "tracing",
  "tracing-subscriber",

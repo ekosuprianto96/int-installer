@@ -270,6 +270,8 @@ mod tests {
             homepage: None,
             auto_launch: false,
             launch_command: None,
+            signature: None,
+            file_hashes: None,
         }
     }
 
@@ -277,7 +279,7 @@ mod tests {
     fn test_desktop_entry_creation() {
         use tempfile::TempDir;
 
-        let manifest = create_test_manifest();
+        let _manifest = create_test_manifest();
         let temp_dir = TempDir::new().unwrap();
         let install_path = temp_dir.path();
 

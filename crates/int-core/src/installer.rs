@@ -17,6 +17,7 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::sync::Arc;
 use uuid::Uuid;
 
 /// Installation configuration
@@ -53,6 +54,7 @@ pub enum InstallProgress {
     RegisteringService,
     CreatingDesktopEntry,
     Finalizing,
+    Log { message: String },
     Completed,
 }
 
@@ -140,7 +142,7 @@ impl InstallMetadata {
 /// Package installer
 pub struct Installer {
     /// Progress callback
-    progress_callback: Option<Box<dyn Fn(InstallProgress) + Send>>,
+    progress_callback: Option<Arc<dyn Fn(InstallProgress) + Send + Sync + 'static>>,
 }
 
 impl Installer {
@@ -154,9 +156,9 @@ impl Installer {
     /// Set progress callback
     pub fn with_progress<F>(mut self, callback: F) -> Self
     where
-        F: Fn(InstallProgress) + Send + 'static,
+        F: Fn(InstallProgress) + Send + Sync + 'static,
     {
-        self.progress_callback = Some(Box::new(callback));
+        self.progress_callback = Some(Arc::new(callback));
         self
     }
 
@@ -169,12 +171,31 @@ impl Installer {
         let package_path = package_path.as_ref();
 
         // Extract package
-        self.report_progress(InstallProgress::Extracting {
-            current: 0,
-            total: 100,
+        self.report_progress(InstallProgress::Log {
+            message: "Initializing package extraction...".to_string(),
         });
 
-        let extractor = PackageExtractor::new();
+        let extractor = {
+            let mut extractor = PackageExtractor::new();
+            extractor.verify_signature = true; // Enable GPG verification
+
+            // Connect progress callback for extraction progress
+            if let Some(ref callback) = self.progress_callback {
+                let cb_progress = Arc::clone(callback);
+                extractor = extractor.with_progress(move |current, total| {
+                    cb_progress(InstallProgress::Extracting { current, total });
+                });
+            }
+
+            // Connect log callback for extraction logs
+            if let Some(ref callback) = self.progress_callback {
+                let cb_log = Arc::clone(callback);
+                extractor = extractor.with_log(move |msg| {
+                    cb_log(InstallProgress::Log { message: msg });
+                });
+            }
+            extractor
+        };
         let extracted = extractor.extract(package_path)?;
 
         // Determine install path
@@ -183,15 +204,33 @@ impl Installer {
             .unwrap_or_else(|| extracted.manifest.install_path.clone());
 
         // Check permissions
+        self.report_progress(InstallProgress::Log {
+            message: format!(
+                "Checking installation permissions for {:?} scope...",
+                extracted.manifest.install_scope
+            ),
+        });
         self.check_permissions(&extracted.manifest, &install_path)?;
 
         // Check disk space
         if let Some(required) = extracted.manifest.required_space {
+            self.report_progress(InstallProgress::Log {
+                message: format!(
+                    "Checking available disk space (required: {} bytes)...",
+                    required
+                ),
+            });
             utils::check_disk_space(&install_path, required)?;
         }
 
         // Check if already installed - if exists, remove it (overwrite)
         if install_path.exists() && !config.dry_run {
+            self.report_progress(InstallProgress::Log {
+                message: format!(
+                    "Removing existing installation at {}...",
+                    install_path.display()
+                ),
+            });
             fs::remove_dir_all(&install_path).map_err(|e| {
                 IntError::Custom(format!(
                     "Failed to remove existing installation at {}: {}",
@@ -213,6 +252,9 @@ impl Installer {
         });
 
         utils::ensure_dir(&install_path)?;
+        self.report_progress(InstallProgress::Log {
+            message: format!("Copying payload files to {}...", install_path.display()),
+        });
         let installed_files = self.copy_payload(&extracted.payload_dir, &install_path)?;
 
         // Set permissions
@@ -222,8 +264,12 @@ impl Installer {
         // Execute post-install script
         if extracted.has_post_install() {
             if let Some(ref script_path) = extracted.manifest.post_install {
+                let script_name = script_path.display().to_string();
+                self.report_progress(InstallProgress::Log {
+                    message: format!("Executing post-install script: {}...", script_name),
+                });
                 self.report_progress(InstallProgress::ExecutingScript {
-                    script: script_path.display().to_string(),
+                    script: script_name,
                 });
 
                 let full_script_path = extracted.extract_dir.join(script_path);
@@ -233,6 +279,9 @@ impl Installer {
 
         // Create desktop entry
         let desktop_entry = if config.create_desktop_entry && extracted.manifest.desktop.is_some() {
+            self.report_progress(InstallProgress::Log {
+                message: "Creating desktop entry...".to_string(),
+            });
             self.report_progress(InstallProgress::CreatingDesktopEntry);
             Some(self.create_desktop_entry(&extracted.manifest, &install_path)?)
         } else {
@@ -241,11 +290,17 @@ impl Installer {
 
         // Register service
         let (service_file, service_name) = if extracted.manifest.service {
+            self.report_progress(InstallProgress::Log {
+                message: "Registering systemd service...".to_string(),
+            });
             self.report_progress(InstallProgress::RegisteringService);
             let (file, name) = self.register_service(&extracted, &install_path)?;
 
             // Start service if requested
             if config.start_service {
+                self.report_progress(InstallProgress::Log {
+                    message: format!("Starting service {}...", name),
+                });
                 ServiceManager::new().start(&name, extracted.manifest.install_scope)?;
             }
 
@@ -287,6 +342,9 @@ impl Installer {
         };
 
         // Create and save metadata
+        self.report_progress(InstallProgress::Log {
+            message: "Saving installation metadata...".to_string(),
+        });
         self.report_progress(InstallProgress::Finalizing);
         let mut metadata =
             self.create_metadata(&extracted.manifest, &install_path, installed_files);
@@ -297,6 +355,9 @@ impl Installer {
 
         metadata.save(extracted.manifest.install_scope)?;
 
+        self.report_progress(InstallProgress::Log {
+            message: "Installation completed successfully.".to_string(),
+        });
         self.report_progress(InstallProgress::Completed);
 
         Ok(metadata)
