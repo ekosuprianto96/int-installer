@@ -2,7 +2,6 @@
 ///
 /// This module handles the manifest.json file that describes an INT package.
 /// It provides type-safe parsing, validation, and access to package metadata.
-
 use crate::error::{IntError, IntResult};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
@@ -275,8 +274,7 @@ impl Manifest {
         // Validate auto-launch
         if self.auto_launch && self.launch_command.is_none() && self.entry.is_none() {
             return Err(IntError::ValidationError(
-                "auto_launch is true but neither launch_command nor entry is specified"
-                    .to_string(),
+                "auto_launch is true but neither launch_command nor entry is specified".to_string(),
             ));
         }
 
@@ -307,10 +305,8 @@ impl Manifest {
                     .join(".local/share/int-installer/installed")
                     .join(format!("{}.json", self.name))
             }
-            InstallScope::System => {
-                PathBuf::from("/var/lib/int-installer/installed")
-                    .join(format!("{}.json", self.name))
-            }
+            InstallScope::System => PathBuf::from("/var/lib/int-installer/installed")
+                .join(format!("{}.json", self.name)),
         }
     }
 
@@ -331,7 +327,8 @@ fn is_valid_package_name(name: &str) -> bool {
 
 /// Check if path contains traversal attempts (..)
 fn has_path_traversal(path: &Path) -> bool {
-    path.components().any(|c| matches!(c, std::path::Component::ParentDir))
+    path.components()
+        .any(|c| matches!(c, std::path::Component::ParentDir))
 }
 
 #[cfg(test)]
@@ -359,6 +356,8 @@ mod tests {
             architecture: Some("x86_64".to_string()),
             license: Some("MIT".to_string()),
             homepage: Some("https://example.com".to_string()),
+            auto_launch: false,
+            launch_command: None,
         }
     }
 
@@ -405,7 +404,13 @@ mod tests {
         let user_scope = InstallScope::User;
         let system_scope = InstallScope::System;
 
-        assert!(user_scope.default_install_path("myapp").to_string_lossy().contains(".local"));
-        assert_eq!(system_scope.default_install_path("myapp"), PathBuf::from("/opt/myapp"));
+        assert!(user_scope
+            .default_install_path("myapp")
+            .to_string_lossy()
+            .contains(".local"));
+        assert_eq!(
+            system_scope.default_install_path("myapp"),
+            PathBuf::from("/opt/myapp")
+        );
     }
 }

@@ -1,41 +1,56 @@
 # INT Installer
 
-**INT Installer** adalah framework instalasi aplikasi untuk Linux yang terinspirasi dari Windows MSI. Sistem ini memungkinkan pengguna untuk menginstal aplikasi dengan double-click pada file `.int`, yang akan membuka GUI wizard installer berbasis Tauri.
+**INT Installer** is an application installation framework for Linux inspired by Windows MSI. This system allows users to install applications by double-clicking `.int` files, which opens a Tauri-based GUI wizard installer.
 
-## 🎯 Fitur Utama
+## ⚠️ Project Status
 
-- ✅ **Package Format**: Format `.int` berbasis tar.gz dengan manifest JSON
-- ✅ **GUI Installer**: Wizard interaktif menggunakan Tauri
-- ✅ **System Integration**: Desktop entries, systemd services, MIME types
-- ✅ **Security**: Path validation, sandboxing, permission checks
-- ✅ **Modular Architecture**: Clean, testable, extensible code
-- ✅ **Linux Native**: Mengikuti freedesktop.org standards
+This project is under active development. Current key components are ready for use:
 
-## 📦 Komponen
+- **✅ Available & Working**:
+  - **Core Logic (`int-core`)**: Manifest parsing, payload extraction, installation validation.
+  - **Packaging Tool (`int-pack`)**: CLI to create standard `.int` packages from source directories.
+  - **Installer Engine (`int-engine`)**: Tauri-based GUI Installer (Vue.js + Rust) with a step-by-step wizard.
+  - **System Integration**: Desktop entries (`.desktop`), MIME types association (`.int`), and basic systemd services.
+
+- **🚧 Work in Progress / Planned**:
+  - **PolicyKit Integration**: Currently, installing to system directories requires running the installer via `sudo`. Native Polkit implementation is in progress.
+  - **Security Signatures**: GPG signature verification for packages is not yet implemented.
+  - **Auto Update**: Automatic application update mechanism is not yet available.
+
+## 🎯 Key Features
+
+- ✅ **Package Format**: tar.gz-based `.int` format with JSON manifest.
+- ✅ **GUI Installer**: Interactive wizard using Tauri.
+- ✅ **System Integration**: Desktop entries, systemd services, MIME types.
+- ✅ **Security**: Path validation, sandboxing, permission checks.
+- ✅ **Modular Architecture**: Clean, testable, extensible code.
+- ✅ **Linux Native**: Follows freedesktop.org standards.
+
+## 📦 Components
 
 ### 1. INT Package Format (`.int`)
 
-Package `.int` adalah archive tar.gz dengan struktur standar:
+The `.int` package is a tar.gz archive with a standard structure:
 
 ```
 package.int
- ├── manifest.json       # Metadata dan konfigurasi
- ├── payload/           # File aplikasi
+ ├── manifest.json       # Metadata and configuration
+ ├── payload/           # Application files
  ├── scripts/           # Install/uninstall scripts
  └── services/          # systemd service files
 ```
 
 ### 2. INT Engine (Tauri GUI)
 
-Aplikasi Tauri yang bertindak sebagai installer engine:
-- Wizard UI multi-step
+A Tauri application that acts as the installer engine:
+- Multi-step wizard UI
 - Progress tracking
 - Error handling
 - System integration
 
 ### 3. INT Pack (CLI Builder)
 
-Tool untuk membuat package `.int`:
+A tool to create `.int` packages:
 
 ```bash
 int-pack build ./myapp --out myapp.int
@@ -45,69 +60,93 @@ int-pack build ./myapp --out myapp.int
 
 ### Prerequisites
 
-- Rust 1.70+ 
-- Node.js 18+ (untuk Tauri frontend)
-- Linux (Ubuntu 22.04, Fedora 38, atau lebih baru)
+- Rust 1.70+
+- Node.js 18+ (for Tauri frontend)
+- Linux (Ubuntu 22.04, Fedora 38, or later)
 
-### Build dari Source
+## 🚀 Installation Guide
+
+There are three ways to install INT Installer on your system:
+
+### Option 1: GitHub Releases (Fastest)
+If you want to use the program directly without installing Rust or Node.js:
+1. Go to the [Releases](https://github.com/ekosuprianto96/int-installer/releases) page.
+2. Download the `int-pack` and `int-engine` binaries.
+3. Place both files in the **root directory** of this project folder.
+4. Run the following installation command:
 
 ```bash
-# Clone repository
+# Skip the build stage and directly install the downloaded binaries
+sudo ./install.sh --bin-only
+```
+
+### Option 2: Automated Source Build
+Use the `install.sh` script to automatically build the frontend, compile binaries, and register the system from source code. (Requires Rust & Node.js).
+
+```bash
 git clone https://github.com/ekosuprianto96/int-installer
 cd int-installer
 
-# Build semua components
+# Build from scratch and install to system
+sudo ./install.sh
+```
+
+### Option 3: Manual Build & Install
+For developers who want to perform each stage manually.
+
+```bash
+# 1. Build Frontend
+cd crates/int-engine/src-ui
+npm install && npm run build
+cd ../../../
+
+# 2. Build Rust Binaries
 cargo build --release
 
-# Build Tauri engine dengan GUI
-cd crates/int-engine
-cargo tauri build
-
-# Binaries ada di target/release/
+# 3. Run Install Script (for system registration & MIME)
+sudo ./install.sh --bin-only
 ```
 
-### Install INT Installer
+---
+
+The `install.sh` script will perform the following:
+1. Build Vue.js frontend (if not --bin-only)
+2. Compile Rust binaries (`int-engine` and `int-pack`) (if not --bin-only)
+3. Install binaries to `~/.local/bin`
+4. Register desktop entries and system MIME types
+
+### Creating a Package
 
 ```bash
-# Install ke system (requires sudo)
-sudo ./scripts/install.sh
-
-# Atau install ke user directory
-./scripts/install.sh --user
-```
-
-### Membuat Package
-
-```bash
-# Buat struktur project
+# Create project structure
 int-pack init myapp
 
-# Edit manifest.json dan tambahkan files ke payload/
+# Edit manifest.json and add files to payload/
 
 # Build package
 int-pack build myapp --out myapp.int
 ```
 
-### Install Package
+### Installing a Package
 
 ```bash
-# Double-click myapp.int di file manager
-# Atau jalankan dari command line:
+# Double-click myapp.int in the file manager
+# Or run from the command line:
 int-engine myapp.int
 ```
 
-## 📖 Dokumentasi
+## 📖 Documentation
 
-- [Architecture](./ARCHITECTURE.md) - Design dan arsitektur sistem
-- [Project Structure](./PROJECT_STRUCTURE.md) - Organisasi code
-- [Manifest Specification](./docs/manifest-spec.md) - Format manifest.json
-- [Developer Guide](./docs/developer-guide.md) - Panduan untuk developer
-- [User Guide](./docs/user-guide.md) - Panduan untuk end user
-- [Security](./docs/security.md) - Security model dan best practices
+- [Architecture](./ARCHITECTURE.md) - System design and architecture
+- [Project Structure](./PROJECT_STRUCTURE.md) - Code organization
+- [Manifest Specification](./docs/manifest-spec.md) - manifest.json format
+- [Developer Guide](./docs/developer-guide.md) - Guide for developers
+- [User Guide](./docs/user-guide.md) - Guide for end users
+- [Security](./docs/security.md) - Security model and best practices
 
 ## 🏗️ Architecture
 
-INT Installer menggunakan arsitektur modular:
+INT Installer uses a modular architecture:
 
 ```
 ┌─────────────────────────────────────┐
@@ -129,15 +168,15 @@ INT Installer menggunakan arsitektur modular:
 
 ## 🔒 Security
 
-INT Installer dirancang dengan security sebagai prioritas:
+INT Installer is designed with security as a priority:
 
-- ✅ **Path Validation**: Mencegah path traversal attacks
-- ✅ **Sandboxed Execution**: Scripts dijalankan dengan kontrol ketat
+- ✅ **Path Validation**: Prevents path traversal attacks
+- ✅ **Sandboxed Execution**: Scripts run with strict control
 - ✅ **Permission Checks**: User vs system scope validation
 - ✅ **Signature Verification**: (Planned) GPG signature support
 - ✅ **Safe Uninstall**: Prevents deletion of system directories
 
-## 📝 Contoh Manifest
+## 📝 Manifest Example
 
 ```json
 {
@@ -237,7 +276,7 @@ You may choose either license for your use.
 - [x] Basic Tauri GUI
 - [x] systemd integration
 - [x] Desktop entry support
-- [ ] Tauri frontend complete UI
+- [x] Tauri frontend complete UI
 - [ ] PolicyKit integration
 - [ ] GPG signature verification
 - [ ] Update mechanism

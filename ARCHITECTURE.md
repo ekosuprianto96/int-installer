@@ -1,49 +1,42 @@
-# INT Installer - Arsitektur Sistem
+# INT Installer - System Architecture
 
-## Ringkasan
+## Overview
 
-INT Installer adalah framework instalasi aplikasi untuk Linux yang terinspirasi dari Windows MSI. Sistem ini memungkinkan pengguna untuk menginstal aplikasi dengan double-click pada file `.int`, yang akan membuka GUI wizard installer berbasis Tauri.
+INT Installer is an application installation framework for Linux inspired by Windows MSI. This system allows users to install applications by double-clicking `.int` files, which opens a Tauri-based GUI wizard installer.
 
-## Komponen Utama
+## Main Components
 
 ### 1. INT Package Format (`.int`)
 
-Package `.int` adalah file tar.gz terkompresi dengan struktur internal yang terdefinisi:
+The `.int` package is a compressed tar.gz file with a defined internal structure:
 
 ```
 package.int (tar.gz)
- ├── manifest.json          # Metadata dan konfigurasi instalasi
- ├── payload/               # File aplikasi yang akan diinstal
- │   ├── bin/
- │   ├── lib/
- │   └── assets/
- ├── scripts/               # Script instalasi
- │   ├── install.sh        # Post-install hook
- │   ├── uninstall.sh      # Pre-uninstall hook
- │   └── validate.sh       # Validasi environment
+ ├── manifest.json          # Metadata and installation configuration
+ ├── payload/               # Application files to be installed
+ ├── scripts/               # Installation scripts
  └── services/              # Service definitions
-     └── myapp.service     # systemd unit file
 ```
 
 ### 2. INT Engine (Tauri + Rust)
 
-Engine adalah aplikasi Tauri yang bertindak sebagai installer. Komponen ini:
+The Engine is a Tauri application that acts as the installer. This component:
 
-- Menerima file `.int` sebagai input
-- Memvalidasi package
-- Menampilkan wizard GUI
-- Mengekstrak dan menginstal payload
-- Mengintegrasikan dengan sistem Linux (desktop entry, systemd)
+- Accepts `.int` files as input
+- Validates the package
+- Displays the GUI wizard
+- Extracts and installs the payload
+- Integrates with the Linux system (desktop entry, systemd)
 
 ### 3. INT Builder (CLI Tool)
 
-Tool untuk membuat package `.int` dari source directory.
+A tool to create `.int` packages from a source directory.
 
 ```bash
 int-pack build ./myapp --out myapp.int
 ```
 
-## Arsitektur Software
+## Software Architecture
 
 ### Layer Architecture
 
@@ -104,77 +97,77 @@ int-pack build ./myapp --out myapp.int
 
 #### 1. `manifest` Module
 
-Bertanggung jawab untuk:
+Responsible for:
 - Parsing `manifest.json`
-- Validasi struktur dan field wajib
-- Menyediakan typed access ke metadata package
+- Validating the structure and mandatory fields
+- Providing typed access to package metadata
 
-**Prinsip:**
+**Principles:**
 - Immutable data structures
-- Strong typing dengan serde
-- Validation di parse time
+- Strong typing with serde
+- Validation at parse time
 
 #### 2. `extractor` Module
 
-Bertanggung jawab untuk:
-- Membuka dan memvalidasi archive `.int`
-- Ekstraksi ke temporary directory
-- Cleanup otomatis via RAII
+Responsible for:
+- Opening and validating the `.int` archive
+- Extraction to a temporary directory
+- Automatic cleanup via RAII
 
-**Prinsip:**
+**Principles:**
 - Safe extraction (path traversal protection)
-- Resource cleanup dengan Drop trait
-- Error handling yang jelas
+- Resource cleanup with Drop trait
+- Clear error handling
 
 #### 3. `installer` Module
 
-Bertanggung jawab untuk:
-- Orchestration proses instalasi
-- Copy files ke target directory
-- Set ownership dan permissions
-- Execute pre/post install scripts
+Responsible for:
+- Orchestrating the installation process
+- Copying files to the target directory
+- Setting ownership and permissions
+- Executing pre/post install scripts
 - Rollback on failure
 
-**Prinsip:**
+**Principles:**
 - Transactional installation
 - Atomic operations where possible
 - Detailed logging
 
 #### 4. `service` Module
 
-Bertanggung jawab untuk:
-- Registrasi systemd service
-- Enable/disable service
+Responsible for:
+- Registering systemd services
+- Enabling/disabling services
 - Start/stop operations
 - Service status checking
 
-**Prinsip:**
-- No direct systemctl execution dari code
+**Principles:**
+- No direct systemctl execution from code
 - Use D-Bus API when possible
 - Graceful fallback
 
 #### 5. `desktop` Module
 
-Bertanggung jawab untuk:
-- Pembuatan `.desktop` entry
+Responsible for:
+- Creating `.desktop` entries
 - MIME type registration
 - Icon installation
 - Application menu integration
 
-**Prinsip:**
+**Principles:**
 - Follow freedesktop.org standards
 - User vs system scope handling
 - XDG directory compliance
 
 #### 6. `security` Module
 
-Bertanggung jawab untuk:
-- Path canonicalization dan validation
+Responsible for:
+- Path canonicalization and validation
 - Privilege escalation control
 - Script execution sandboxing
 - Signature verification (future)
 
-**Prinsip:**
+**Principles:**
 - Defense in depth
 - Principle of least privilege
 - Fail secure
@@ -246,28 +239,28 @@ Bertanggung jawab untuk:
 ### Threat Model
 
 **Threats:**
-1. Malicious `.int` package dengan path traversal
-2. Privilege escalation melalui script execution
-3. Arbitrary code execution tanpa user consent
+1. Malicious `.int` package with path traversal
+2. Privilege escalation via script execution
+3. Arbitrary code execution without user consent
 4. Data exfiltration via network requests
 5. System compromise via malformed manifest
 
 **Mitigations:**
 
 1. **Path Sanitization**
-   - Semua path di-canonicalize
-   - Reject absolute paths di payload
+   - All paths are canonicalized
+   - Reject absolute paths in payload
    - Reject `..` traversal
    - Enforce target directory boundaries
 
 2. **Script Execution Control**
-   - Scripts di-execute dengan user privileges
+   - Scripts are executed with user privileges
    - No automatic root execution
    - Clear permission prompts
    - Audit logging
 
 3. **Manifest Validation**
-   - Schema validation dengan serde
+   - Schema validation with serde
    - Type checking
    - Range validation
    - Reject unknown fields (strict mode)
@@ -278,7 +271,7 @@ Bertanggung jawab untuk:
    - Certificate pinning
 
 5. **Sandboxing (Future)**
-   - Run scripts dalam restricted environment
+   - Run scripts in a restricted environment
    - Network isolation option
    - Filesystem access limitation
 
@@ -385,10 +378,10 @@ pub enum IntError {
 
 ### Error Recovery
 
-- **Transactional installation**: Rollback jika gagal
-- **Cleanup garanteed**: Menggunakan RAII dan Drop trait
-- **User-friendly messages**: Error teknis di-translate ke bahasa sederhana
-- **Detailed logging**: Semua error dicatat untuk debugging
+- **Transactional installation**: Rollback on failure
+- **Cleanup guaranteed**: Using RAII and Drop trait
+- **User-friendly messages**: Technical errors translated to simple language
+- **Detailed logging**: All errors recorded for debugging
 
 ## Extensibility
 
@@ -413,25 +406,25 @@ pub trait ManifestValidator {
 
 ### Backend Support
 
-Untuk mendukung package managers lain:
+To support other package managers:
 - APT integration hook
 - Flatpak conversion
 - AppImage bundling
 
 ## Performance Considerations
 
-1. **Streaming Extraction**: Untuk package besar, ekstrak secara streaming
-2. **Parallel File Copy**: Gunakan rayon untuk copy paralel
+1. **Streaming Extraction**: For large packages, extract via streaming
+2. **Parallel File Copy**: Use rayon for parallel copying
 3. **Progress Reporting**: Real-time progress via channels
-4. **Memory Usage**: Hindari load entire archive ke memory
+4. **Memory Usage**: Avoid loading the entire archive into memory
 
 ## Testing Strategy
 
-1. **Unit Tests**: Setiap module memiliki comprehensive unit tests
+1. **Unit Tests**: Every module has comprehensive unit tests
 2. **Integration Tests**: Test full installation flow
-3. **Security Tests**: Penetration testing untuk path traversal, dll
-4. **UI Tests**: Tauri WebDriver tests untuk GUI
-5. **Package Tests**: Test dengan berbagai manifest configurations
+3. **Security Tests**: Penetration testing for path traversal, etc.
+4. **UI Tests**: Tauri WebDriver tests for GUI
+5. **Package Tests**: Test with various manifest configurations
 
 ## Deployment
 
@@ -444,11 +437,11 @@ Untuk mendukung package managers lain:
 
 ### Installation Metadata
 
-Setiap instalasi menyimpan metadata di:
+Each installation stores metadata in:
 - User install: `~/.local/share/int-installer/installed/`
 - System install: `/var/lib/int-installer/installed/`
 
-Format metadata:
+Metadata format:
 
 ```json
 {
@@ -465,15 +458,15 @@ Format metadata:
 }
 ```
 
-## Kesimpulan
+## Conclusion
 
-Arsitektur INT Installer dirancang dengan prinsip:
+The INT Installer architecture is designed with the following principles:
 
-1. **Modular**: Setiap komponen independen dan testable
+1. **Modular**: Each component is independent and testable
 2. **Secure**: Defense in depth, fail secure
-3. **Extensible**: Plugin system untuk custom behaviors
-4. **User-friendly**: GUI yang jelas dan error messages yang helpful
-5. **Linux-native**: Mengikuti freedesktop.org standards
+3. **Extensible**: Plugin system for custom behaviors
+4. **User-friendly**: Clear GUI and helpful error messages
+5. **Linux-native**: Follows freedesktop.org standards
 6. **Professional**: Production-ready code quality
 
-Sistem ini tidak hanya sebagai proof-of-concept, tetapi sebagai installer framework yang siap digunakan untuk distribusi aplikasi Linux secara profesional.
+This system is not just a proof-of-concept, but an installer framework ready to be used for professional Linux application distribution.

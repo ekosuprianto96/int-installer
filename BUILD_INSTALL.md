@@ -2,282 +2,125 @@
 
 ## 🔨 Build Instructions
 
-### Option 1: Build Core Library Only (Available Now)
+### Option 1: Build the Entire Workspace (Recommended)
+
+Now that all components are implemented, you can build the entire project at once:
 
 ```bash
-# Di direktori project root
+# In the project root directory
 cd int-installer
 
-# Build core library
-cargo build --release -p int-core
-
-# Run tests
-cargo test -p int-core
+# Build all crates (core, pack, engine)
+cargo build --release
 ```
 
 Output:
-- `target/release/libint_core.rlib` - Core library
+- `target/release/int-pack` - Documentation & Package builder tool
+- `target/release/int-engine` - GUI/CLI Installer engine
+- `target/release/libint_core.rlib` - Shared core library
 
-### Option 2: Build Entire Workspace (Akan Error - Tools Belum Ada)
+### Option 2: Build Specific Crates
 
 ```bash
-# Ini akan GAGAL karena int-engine dan int-pack belum diimplementasi
-cargo build --workspace --release
-```
+# Build only the core library
+cargo build --release -p int-core
 
-**Error yang akan muncul**:
-```
-error: no bin target named `int-pack`
-error: no bin target named `int-engine`
-```
+# Build only the packaging tool
+cargo build --release -p int-pack
 
-Ini normal karena CLI tools belum dibuat.
+# Build only the installer engine
+cargo build --release -p int-engine
+```
 
 ## ✅ What You Can Do Now
 
-### 1. Explore & Test Core Library
+### 1. Run Tests
 
 ```bash
-# Build core
-cargo build -p int-core
+# Run all tests in the workspace
+cargo test --workspace
 
-# Run tests
+# Run tests for a specific crate
 cargo test -p int-core
-
-# Check documentation
-cargo doc -p int-core --open
 ```
 
-### 2. Use Core Library in Your Code
+### 2. Use the Tools
 
-Tambahkan ke `Cargo.toml` Anda:
-
-```toml
-[dependencies]
-int-core = { path = "../path/to/int-installer/crates/int-core" }
-```
-
-Contoh usage:
-
-```rust
-use int_core::{Installer, InstallConfig, PackageExtractor};
-
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Extract package
-    let extractor = PackageExtractor::new();
-    let package = extractor.extract("myapp.int")?;
-    
-    println!("Package: {} v{}", 
-        package.manifest.name, 
-        package.manifest.package_version
-    );
-    
-    // Install
-    let installer = Installer::new();
-    let metadata = installer.install(
-        "myapp.int", 
-        InstallConfig::default()
-    )?;
-    
-    println!("Installed to: {}", metadata.install_path.display());
-    Ok(())
-}
-```
-
-## 🚧 Implement Missing Tools
-
-Untuk membuat project fully functional, Anda perlu implement:
-
-### 1. INT Pack (CLI Builder Tool)
-
-**File yang perlu dibuat**: `crates/int-pack/src/main.rs`
-
+**Create a package template:**
 ```bash
-cd crates/int-pack
-mkdir -p src
-
-# Edit Cargo.toml
-cat > Cargo.toml <<'EOF'
-[package]
-name = "int-pack"
-version.workspace = true
-edition.workspace = true
-
-[[bin]]
-name = "int-pack"
-path = "src/main.rs"
-
-[dependencies]
-int-core = { path = "../int-core" }
-clap = { version = "4.4", features = ["derive"] }
-anyhow.workspace = true
-serde_json.workspace = true
-EOF
-
-# Create basic main.rs
-cat > src/main.rs <<'EOF'
-use clap::{Parser, Subcommand};
-
-#[derive(Parser)]
-#[command(name = "int-pack")]
-#[command(about = "INT Package Builder", long_about = None)]
-struct Cli {
-    #[command(subcommand)]
-    command: Commands,
-}
-
-#[derive(Subcommand)]
-enum Commands {
-    /// Create a new package template
-    Init { name: String },
-    
-    /// Build an INT package
-    Build {
-        /// Source directory
-        source: String,
-        
-        /// Output file
-        #[arg(short, long)]
-        out: String,
-    },
-    
-    /// Validate a manifest
-    Validate { manifest: String },
-}
-
-fn main() {
-    let cli = Cli::parse();
-    
-    match cli.command {
-        Commands::Init { name } => {
-            println!("Creating package template: {}", name);
-            // TODO: Implement
-        }
-        Commands::Build { source, out } => {
-            println!("Building package from {} to {}", source, out);
-            // TODO: Implement using int-core
-        }
-        Commands::Validate { manifest } => {
-            println!("Validating manifest: {}", manifest);
-            // TODO: Implement using int-core
-        }
-    }
-}
-EOF
-
-# Build it
-cargo build --release
-
-# Test it
-./target/release/int-pack --help
+./target/release/int-pack init my-app
 ```
 
-### 2. INT Engine (GUI Installer)
+**Build a package:**
+```bash
+./target/release/int-pack build ./my-app --out my-app.int
+```
 
-**Ini lebih kompleks, perlu Tauri + React**:
+**Install a package:**
+```bash
+./target/release/int-engine my-app.int
+```
+
+## 🚀 Step-by-Step Development Guide
+
+### 1. Core Library (`int-core`)
+The core library handles the logic for manifest parsing, package extraction, and system integration.
+- Location: `crates/int-core/`
+- All tests should pass: `cargo test -p int-core`
+
+### 2. Packaging Tool (`int-pack`)
+The CLI tool used by developers to create `.int` packages.
+- Location: `crates/int-pack/`
+- Usage: `int-pack --help`
+
+### 3. Installer Engine (`int-engine`)
+The main GUI application built with Tauri that users interact with.
+- Location: `crates/int-engine/`
+- Frontend: `crates/int-engine/src-ui/`
+- To run development server: `cd crates/int-engine && cargo tauri dev`
+
+## 📦 Distribution Formats
+
+To create system-specific packages (deb, rpm, AppImage):
 
 ```bash
 cd crates/int-engine
-
-# Install Tauri CLI
-cargo install tauri-cli
-
-# Create Tauri app
-cargo tauri init
-
-# Follow prompts, atau lihat NEXT_STEPS.md untuk detail
+cargo tauri build
 ```
 
-## 📦 Quick Start for Development
-
-### Step 1: Verify Core Library Works
-
-```bash
-cd int-installer
-cargo test -p int-core
-```
-
-Jika semua tests pass ✅, core library siap digunakan.
-
-### Step 2: Create int-pack CLI
-
-Lihat section "Implement Missing Tools" di atas, atau:
-
-```bash
-# Copy template dari examples
-cp -r examples/int-pack-template crates/int-pack/
-cd crates/int-pack
-cargo build --release
-```
-
-### Step 3: Test with Example Package
-
-```bash
-# Build example package (setelah int-pack dibuat)
-./target/release/int-pack build examples/hello-world --out hello.int
-
-# Inspect package
-tar -tzf hello.int
-```
+The resulting bundles will be located in `target/release/bundle/`.
 
 ## 🐛 Common Issues
 
-### Error: "found a virtual manifest"
+### Error: "command not found: tauri"
 
-**Problem**: Mencoba `cargo install` di workspace root
-
-**Solution**: 
+**Solution**: Install the Tauri CLI globally or use `cargo tauri`.
 ```bash
-# Jangan gunakan cargo install di workspace
-# Gunakan cargo build -p <package-name>
-
-cargo build --release -p int-core  # ✅ Correct
-cargo install                       # ❌ Wrong
+cargo install tauri-cli
 ```
 
-### Error: "no bin target named ..."
+### Error: CSS/Frontend build fails
 
-**Problem**: Tools belum diimplementasi
-
-**Solution**: Implement int-pack dan int-engine dulu (lihat NEXT_STEPS.md)
-
-### Error: Dependencies tidak ditemukan
-
-**Problem**: Network issue atau crates.io down
-
-**Solution**:
+**Solution**: Ensure you have Node.js and npm installed, then:
 ```bash
-cargo clean
-cargo build -p int-core --offline  # Jika sudah pernah build
-# atau
-cargo build -p int-core            # Re-download dependencies
+cd crates/int-engine/src-ui
+npm install
+npm run build
+```
+
+### Permission denied during installation
+
+**Solution**: Ensure the `install.sh` script and individual scripts in the package are executable.
+```bash
+chmod +x install.sh
 ```
 
 ## 📖 Further Reading
 
-- [NEXT_STEPS.md](NEXT_STEPS.md) - Development roadmap
-- [ARCHITECTURE.md](ARCHITECTURE.md) - System design
-- [docs/manifest-spec.md](docs/manifest-spec.md) - Package format
-
-## 💡 Tips
-
-1. **Untuk sekarang**: Fokus ke int-core library dulu, pastikan tests pass
-2. **Next**: Implement int-pack untuk create packages
-3. **Last**: Implement int-engine untuk GUI installer
-
-Prioritas:
-```
-int-core ✅ (Done) → int-pack 🚧 (Next) → int-engine 📅 (Later)
-```
-
-## ✅ Success Criteria
-
-Anda berhasil jika:
-
-- ✅ `cargo test -p int-core` semua pass
-- ✅ Bisa create package dengan int-pack
-- ✅ Bisa install package dengan int-engine
+- [ARCHITECTURE.md](ARCHITECTURE.md) - System design and logic
+- [QUICK_START.md](QUICK_START.md) - Fast overview of the system
+- [RELEASE_NOTES.md](RELEASE_NOTES.md) - Latest features and fixes in v0.2.0
 
 ---
 
-**Need Help?** Check NEXT_STEPS.md atau lihat code di `crates/int-core/src/` sebagai reference.
+**Happy Building!** Check the [Architecture Guide](ARCHITECTURE.md) for deeper technical insights.

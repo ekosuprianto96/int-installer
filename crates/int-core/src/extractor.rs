@@ -2,7 +2,6 @@
 ///
 /// This module handles the extraction of .int packages (tar.gz archives)
 /// with security validation and progress tracking.
-
 use crate::error::{IntError, IntResult};
 use crate::manifest::Manifest;
 use crate::security::SecurityValidator;
@@ -37,9 +36,7 @@ impl ExtractedPackage {
 
     /// Get path to a service file
     pub fn service_path(&self, service_name: &str) -> Option<PathBuf> {
-        self.services_dir
-            .as_ref()
-            .map(|dir| dir.join(service_name))
+        self.services_dir.as_ref().map(|dir| dir.join(service_name))
     }
 
     /// Check if post-install script exists
@@ -132,7 +129,9 @@ impl PackageExtractor {
         let temp_dir = tempfile::tempdir()
             .map_err(|e| IntError::Custom(format!("Failed to create temp dir: {}", e)))?;
 
-        let extract_dir = temp_dir.into_path();
+        // keep() returns PathBuf on some versions or when certain features are enabled.
+        // Based on compiler error, it's returning PathBuf directly here.
+        let extract_dir = temp_dir.keep();
 
         // Extract archive
         self.extract_archive(package_path, &extract_dir, package_size)?;
@@ -171,7 +170,7 @@ impl PackageExtractor {
         };
 
         Ok(ExtractedPackage {
-            extract_dir,
+            extract_dir: extract_dir.to_path_buf(),
             manifest,
             payload_dir,
             scripts_dir,
@@ -196,14 +195,13 @@ impl PackageExtractor {
         for entry_result in archive.entries().map_err(|e| {
             IntError::CorruptedArchive(format!("Failed to read archive entries: {}", e))
         })? {
-            let mut entry = entry_result.map_err(|e| {
-                IntError::CorruptedArchive(format!("Failed to read entry: {}", e))
-            })?;
+            let mut entry = entry_result
+                .map_err(|e| IntError::CorruptedArchive(format!("Failed to read entry: {}", e)))?;
 
             // Get entry path
-            let entry_path = entry.path().map_err(|e| {
-                IntError::CorruptedArchive(format!("Invalid entry path: {}", e))
-            })?;
+            let entry_path = entry
+                .path()
+                .map_err(|e| IntError::CorruptedArchive(format!("Invalid entry path: {}", e)))?;
 
             // Validate path
             let safe_path = self
@@ -293,16 +291,16 @@ impl PackageExtractor {
         let mut archive = Archive::new(decoder);
 
         // Find and parse manifest
-        for entry_result in archive.entries().map_err(|e| {
-            IntError::CorruptedArchive(format!("Failed to read archive: {}", e))
-        })? {
-            let mut entry = entry_result.map_err(|e| {
-                IntError::CorruptedArchive(format!("Failed to read entry: {}", e))
-            })?;
+        for entry_result in archive
+            .entries()
+            .map_err(|e| IntError::CorruptedArchive(format!("Failed to read archive: {}", e)))?
+        {
+            let mut entry = entry_result
+                .map_err(|e| IntError::CorruptedArchive(format!("Failed to read entry: {}", e)))?;
 
-            let entry_path = entry.path().map_err(|e| {
-                IntError::CorruptedArchive(format!("Invalid entry path: {}", e))
-            })?;
+            let entry_path = entry
+                .path()
+                .map_err(|e| IntError::CorruptedArchive(format!("Invalid entry path: {}", e)))?;
 
             if entry_path == Path::new("manifest.json") {
                 let mut content = String::new();
@@ -362,9 +360,7 @@ mod tests {
         header.set_size(manifest.len() as u64);
         header.set_mode(0o644);
         header.set_cksum();
-        builder
-            .append(&header, manifest.as_bytes())
-            .unwrap();
+        builder.append(&header, manifest.as_bytes()).unwrap();
 
         // Add payload directory
         let mut header = tar::Header::new_gnu();

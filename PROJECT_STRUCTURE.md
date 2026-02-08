@@ -5,7 +5,7 @@
 ```
 int-installer/
 ├── Cargo.toml                      # Workspace root
-├── ARCHITECTURE.md                 # Arsitektur sistem (dokumen ini)
+├── ARCHITECTURE.md                 # System architecture
 ├── README.md                       # Project overview
 ├── LICENSE                         # MIT/Apache-2.0
 │
@@ -36,18 +36,18 @@ int-installer/
 │   │   │   ├── commands.rs        # Tauri commands
 │   │   │   ├── state.rs           # Application state
 │   │   │   └── events.rs          # Event handling
-│   │   ├── src-ui/                # Frontend (TypeScript + React)
+│   │   ├── src-ui/                # Frontend (TypeScript + Vue/React)
 │   │   │   ├── package.json
 │   │   │   ├── tsconfig.json
 │   │   │   ├── vite.config.ts
 │   │   │   ├── index.html
 │   │   │   └── src/
-│   │   │       ├── main.tsx
-│   │   │       ├── App.tsx
+│   │   │       ├── main.ts
+│   │   │       ├── App.vue
 │   │   │       ├── components/
-│   │   │       │   ├── WizardStep.tsx
-│   │   │       │   ├── ProgressBar.tsx
-│   │   │       │   └── InstallOptions.tsx
+│   │   │       │   ├── WizardStep.vue
+│   │   │       │   ├── ProgressBar.vue
+│   │   │       │   └── InstallOptions.vue
 │   │   │       ├── hooks/
 │   │   │       │   └── useInstaller.ts
 │   │   │       └── styles/
@@ -143,7 +143,7 @@ target/
 
 ## Distributable Package Structure
 
-Ketika int-engine di-bundle untuk distribusi:
+When int-engine is bundled for distribution:
 
 ```
 int-installer-1.0.0/
@@ -166,7 +166,7 @@ int-installer-1.0.0/
 │           └── com.intinstaller.install.policy
 └── lib/
     └── int-installer/
-        └── (bundled dependencies jika perlu)
+        └── (bundled dependencies if needed)
 ```
 
 ## Installation Locations
@@ -218,7 +218,7 @@ int-installer-1.0.0/
 git clone <repo-url>
 cd int-installer
 
-# Install Rust dependencies
+# Build Rust dependencies
 cargo build
 
 # Setup frontend (int-engine)
@@ -261,11 +261,11 @@ cargo build --release -p int-pack
 
 ### Workspace Cargo.toml
 
-Mendefinisikan workspace dan shared dependencies.
+Defines workspace and shared dependencies.
 
 ### Tauri Configuration
 
-`crates/int-engine/tauri.conf.json` - Konfigurasi window, permissions, bundling.
+`crates/int-engine/tauri.conf.json` - Window, permissions, bundling configuration.
 
 ### Frontend Configuration
 
@@ -283,8 +283,8 @@ Mendefinisikan workspace dan shared dependencies.
 
 ## Notes
 
-1. **Separation of Concerns**: Core logic terpisah dari UI, memungkinkan CLI-only installer jika diperlukan
-2. **Testability**: Setiap crate bisa di-test independently
-3. **Reusability**: int-core bisa digunakan oleh tools lain
-4. **Distribution**: Multiple distribution formats (AppImage, deb, rpm)
-5. **Standards Compliance**: Mengikuti Linux/freedesktop.org standards
+1. **Separation of Concerns**: Core logic is separate from the UI, allowing a CLI-only installer if needed.
+2. **Testability**: Each crate can be tested independently.
+3. **Reusability**: int-core can be used by other tools.
+4. **Distribution**: Multiple distribution formats (AppImage, deb, rpm).
+5. **Standards Compliance**: Follows Linux/freedesktop.org standards.

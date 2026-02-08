@@ -1,0 +1,3 @@
+#!/bin/bash
+echo "Auto-launch app started!"
+if command -v zenity >/dev/null 2>&1; then zenity --info --text="Aplikasi berhasil dijalankan otomatis!" --title="Success"; else echo "Zeniy not found, check terminal output"; fi

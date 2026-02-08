@@ -1,0 +1,13 @@
+{
+    "version": "1.0",
+    "name": "auto-launch-demo",
+    "display_name": "Auto Launch Demo",
+    "package_version": "1.0.0",
+    "description": "A demo package for auto-launch functionality",
+    "author": "Antigravity",
+    "install_scope": "user",
+    "install_path": "/home/ekosuprianto96/.local/share/auto-launch-demo",
+    "entry": "test-app",
+    "auto_launch": true,
+    "launch_command": "test-app"
+}

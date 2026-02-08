@@ -1,0 +1,13 @@
+{
+    "version": "1.0",
+    "name": "gnome-calculator-demo",
+    "display_name": "Gnome Calculator Demo",
+    "package_version": "1.0.0",
+    "description": "Real application demo using Gnome Calculator to test auto-launch",
+    "author": "Antigravity",
+    "install_scope": "user",
+    "install_path": "/home/ekosuprianto96/.local/share/calculator-demo",
+    "entry": "gnome-calculator",
+    "auto_launch": true,
+    "launch_command": "gnome-calculator"
+}

@@ -2,7 +2,6 @@
 ///
 /// This module handles creation of .desktop files for application menu integration
 /// following freedesktop.org standards.
-
 use crate::error::{IntError, IntResult};
 use crate::manifest::Manifest;
 use crate::utils;
@@ -73,12 +72,18 @@ impl DesktopIntegration {
 
         // Categories
         if !desktop_config.categories.is_empty() {
-            content.push_str(&format!("Categories={}\n", desktop_config.categories.join(";")));
+            content.push_str(&format!(
+                "Categories={}\n",
+                desktop_config.categories.join(";")
+            ));
         }
 
         // MIME types
         if !desktop_config.mime_types.is_empty() {
-            content.push_str(&format!("MimeType={}\n", desktop_config.mime_types.join(";")));
+            content.push_str(&format!(
+                "MimeType={}\n",
+                desktop_config.mime_types.join(";")
+            ));
         }
 
         // Keywords
@@ -165,7 +170,12 @@ impl DesktopIntegration {
     /// Install icon files
     ///
     /// Copies icon files to the appropriate XDG icon directory.
-    pub fn install_icons(&self, source_dir: &Path, app_name: &str, is_user: bool) -> IntResult<()> {
+    pub fn install_icons(
+        &self,
+        source_dir: &Path,
+        _app_name: &str,
+        is_user: bool,
+    ) -> IntResult<()> {
         let icon_base = if is_user {
             let home = std::env::var("HOME").unwrap_or_else(|_| "/home/user".to_string());
             PathBuf::from(home).join(".local/share/icons")
@@ -204,9 +214,7 @@ impl DesktopIntegration {
     fn update_icon_cache(&self, icon_dir: &Path) -> IntResult<()> {
         use std::process::Command;
 
-        let which_output = Command::new("which")
-            .arg("gtk-update-icon-cache")
-            .output();
+        let which_output = Command::new("which").arg("gtk-update-icon-cache").output();
 
         if let Ok(output) = which_output {
             if output.status.success() {
@@ -260,6 +268,8 @@ mod tests {
             architecture: None,
             license: None,
             homepage: None,
+            auto_launch: false,
+            launch_command: None,
         }
     }
 

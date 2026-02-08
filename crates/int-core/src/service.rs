@@ -165,7 +165,7 @@ impl ServiceManager {
             cmd.arg(flag);
         }
 
-        let output = cmd.output().map_err(|e| {
+        let _output = cmd.output().map_err(|e| {
             IntError::SystemdError(format!("Failed to execute systemctl: {}", e))
         })?;
 

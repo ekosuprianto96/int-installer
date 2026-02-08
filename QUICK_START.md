@@ -17,7 +17,7 @@ cargo --version
 tar -xzf int-installer-project.tar.gz
 cd int-installer
 
-# Build all tools
+# Build all tools (requires cargo-tauri if building for production)
 cargo build --workspace --release
 
 # Run tests
@@ -30,7 +30,7 @@ ls -lh target/release/int-*
 Output:
 ```
 target/release/int-pack     # Package builder
-target/release/int-engine   # Installer (CLI mode)
+target/release/int-engine   # Installer (GUI & CLI mode)
 ```
 
 ## Usage Examples
@@ -62,16 +62,16 @@ cp my-binary my-app/payload/bin/
 ### 3. Install Package
 
 ```bash
-# Install (user scope)
+# Install via GUI (default)
 ./target/release/int-engine my-app.int
 
-# Install (system scope - requires sudo)
-sudo ./target/release/int-engine my-app.int --scope system
+# Install via CLI (if implemented/planned as fallback)
+# ./target/release/int-engine --cli my-app.int
 
-# List installed
+# List installed packages
 ./target/release/int-engine --list
 
-# Uninstall
+# Uninstall a package
 ./target/release/int-engine --uninstall my-app
 ```
 
@@ -87,7 +87,7 @@ cd ../..
 ./target/release/int-engine hello-world.int
 
 # Run the installed app
-~/.local/share/hello-world/bin/hello
+~/.local/bin/hello  # Or defined path in manifest
 ```
 
 ## What's Working Now
@@ -98,11 +98,11 @@ cd ../..
 - Validate manifests
 - Show package info
 
-✅ **int-engine** - CLI installer (no GUI yet)
-- Install packages
-- Uninstall packages
-- List installed
-- Progress tracking
+✅ **int-engine** - GUI Installer (Tauri)
+- Interactive installation wizard
+- Package extraction and validation
+- desktop entry and service registration
+- Progress tracking and error handling
 
 ✅ **int-core** - Complete library
 - Manifest parsing
@@ -113,9 +113,10 @@ cd ../..
 
 ## What's Not Yet Implemented
 
-❌ **GUI Installer** - Tauri interface not yet built
-- Currently CLI-only
-- To add GUI: See `NEXT_STEPS.md`
+🚧 **Advanced Features**
+- PolicyKit integration (Native auth dialogs)
+- GPG signature verification
+- Automatic update mechanism
 
 ## Troubleshooting
 
@@ -131,7 +132,7 @@ cargo build --workspace --release
 
 ```bash
 # Make scripts executable
-chmod +x build.sh
+chmod +x install.sh
 chmod +x examples/*/scripts/*.sh
 ```
 
@@ -152,7 +153,7 @@ int-pack --help
 2. ✅ Create your first package
 3. ✅ Test installation
 4. 📖 Read [ARCHITECTURE.md](ARCHITECTURE.md) for details
-5. 🔧 Check [NEXT_STEPS.md](NEXT_STEPS.md) for GUI implementation
+5. 🛡️ Check [RELEASE_NOTES.md](RELEASE_NOTES.md) for the latest updates
 
 ## Documentation
 
@@ -160,8 +161,8 @@ int-pack --help
 - `ARCHITECTURE.md` - System design
 - `BUILD_INSTALL.md` - Detailed build guide
 - `docs/manifest-spec.md` - Package format
-- `NEXT_STEPS.md` - Development roadmap
+- `RELEASE_NOTES.md` - Version 0.2.0 updates
 
 ---
 
-**Pro Tip**: Start with `examples/hello-world` untuk memahami format package.
+**Pro Tip**: Start with `examples/hello-world` to understand the package format.

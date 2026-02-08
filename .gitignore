@@ -32,3 +32,7 @@ Desktop.ini
 # Project Specific
 # Generated package files
 *.int
+
+# Built binaries in root
+/int-engine
+/int-pack
